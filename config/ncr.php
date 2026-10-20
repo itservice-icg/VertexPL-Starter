@@ -1,0 +1,71 @@
+<?php
+
+return [
+    'disposition_status_labels' => [
+        'DRAFT' => 'ฉบับร่าง',
+        'PENDING' => 'รอพิจารณา',
+        'APPROVED' => 'อนุมัติแล้ว',
+        'REJECTED' => 'ส่งกลับแก้ไข',
+    ],
+    'approval_decision_labels' => [
+        'APPROVED' => 'อนุมัติ',
+        'REJECTED' => 'ไม่อนุมัติ / ส่งกลับแก้ไข',
+    ],
+    'status_labels' => [
+        'DRAFT' => 'ฉบับร่าง',
+        'RETURNED_FOR_CORRECTION' => 'ส่งกลับแก้ไขข้อมูล',
+        'INITIAL_REVIEW' => 'อยู่ระหว่าง Initial Review',
+        'PENDING_MANAGER_APPROVAL' => 'รอรองกรรมการผู้จัดการอนุมัติ Disposition',
+        'RETURNED_FOR_DISPOSITION_REVISION' => 'ส่งกลับแก้ไขข้อเสนอแนะ',
+        'PENDING_DESTRUCTION_APPROVAL' => 'รออนุมัติการทำลาย',
+        'DISPOSITION_APPROVED' => 'อนุมัติข้อเสนอแนะแล้ว',
+        'ACTION_IN_PROGRESS' => 'กำลังดำเนินการแก้ไข',
+        'PENDING_ACTION_VERIFICATION' => 'รอตรวจยืนยันผล',
+        'RETURNED_FOR_REWORK' => 'ส่งกลับดำเนินการใหม่',
+        'QA_VERIFIED' => 'QA ตรวจติดตามผล',
+        'CLOSED' => 'ปิด NCR แล้ว',
+    ],
+    'action_status_labels' => [
+        'OPEN' => 'เปิด',
+        'PENDING_APPROVAL' => 'รอรองกรรมการผู้จัดการอนุมัติ',
+        'APPROVED' => 'อนุมัติแล้ว',
+        'REJECTED' => 'ส่งกลับแก้ไข',
+        'IN_PROGRESS' => 'กำลังดำเนินการ',
+        'COMPLETED' => 'เสร็จสิ้น',
+        'VERIFIED' => 'ตรวจสอบแล้ว',
+    ],
+    'history_action_labels' => [
+        'START_REWORK' => 'เริ่มดำเนินการ Rework',
+        'SUBMIT_CORRECTIVE_ACTION_APPROVAL' => 'ส่ง Corrective Action ขออนุมัติ',
+        'APPROVE_CORRECTIVE_ACTION' => 'อนุมัติ Corrective Action',
+        'REJECT_CORRECTIVE_ACTION' => 'ไม่อนุมัติ Corrective Action / ส่งกลับแก้ไข',
+        'SUBMIT_DESTRUCTION_APPROVAL' => 'ส่งขออนุมัติการทำลาย',
+        'APPROVE_DESTRUCTION' => 'อนุมัติการทำลาย',
+        'REJECT_DESTRUCTION' => 'ไม่อนุมัติการทำลาย / ส่งกลับแก้ไข Corrective Action',
+    ],
+    'verification_result_labels' => [
+        'PASSED' => 'ผ่าน',
+        'FAILED' => 'ไม่ผ่าน',
+    ],
+    'followup_result_labels' => [
+        'EFFECTIVE' => 'มีประสิทธิผล',
+        'NOT_EFFECTIVE' => 'ไม่มีประสิทธิผล',
+        'NEED_MORE_TIME' => 'ติดตามครั้งถัดไป',
+    ],
+    'form' => [
+        'code' => 'FM-DQA-06',
+        'revision' => '03',
+        'revision_date' => '2023-01-04',
+    ],
+    'masters' => [
+        'problem-types' => ['model' => App\Models\ProblemType::class, 'title' => 'ประเภทปัญหา', 'fields' => ['description' => 'รายละเอียด', 'require_attachment' => 'บังคับแนบไฟล์']],
+        'severity-levels' => ['model' => App\Models\SeverityLevel::class, 'title' => 'ระดับความรุนแรง', 'fields' => ['sla_days' => 'SLA (วัน)', 'sort_order' => 'ลำดับ']],
+        'disposition-types' => ['model' => App\Models\DispositionType::class, 'title' => 'ประเภทการจัดการ', 'fields' => ['description' => 'รายละเอียด', 'require_approval' => 'ต้องอนุมัติ']],
+        'root-cause-types' => ['model' => App\Models\RootCauseType::class, 'title' => 'ประเภทสาเหตุราก', 'fields' => []],
+        'units' => ['model' => App\Models\Unit::class, 'title' => 'หน่วยนับ', 'fields' => ['symbol' => 'สัญลักษณ์']],
+        'products' => ['model' => App\Models\Product::class, 'title' => 'สินค้า', 'name_label' => 'ชื่อสินค้า', 'fields' => []],
+        'customers' => ['model' => App\Models\Customer::class, 'title' => 'ลูกค้า', 'name_label' => 'ชื่อลูกค้า', 'fields' => []],
+        'suppliers' => ['model' => App\Models\Supplier::class, 'title' => 'ผู้ผลิต/ผู้ขาย', 'name_label' => 'ชื่อผู้ผลิต/ผู้ขาย', 'fields' => []],
+        'notification-rules' => ['model' => App\Models\NotificationRule::class, 'title' => 'กฎการแจ้งเตือน', 'fields' => ['event' => 'Event']],
+    ],
+];

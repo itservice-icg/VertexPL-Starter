@@ -1,0 +1,16 @@
+<x-app-layout>
+    <x-slot name="header">
+        <div>
+            <p class="text-sm font-medium text-indigo-600">User Management</p>
+            <h1 class="mt-1 text-2xl font-bold text-slate-900">เพิ่มผู้ใช้งาน</h1>
+            <p class="mt-1 text-sm text-slate-500">สร้างบัญชีและกำหนดสิทธิ์เริ่มต้น</p>
+        </div>
+    </x-slot>
+
+    <div class="p-4 sm:p-6">
+        <form method="POST" action="{{ route('users.store') }}">
+            @csrf
+            @include('users._form')
+        </form>
+    </div>
+</x-app-layout>

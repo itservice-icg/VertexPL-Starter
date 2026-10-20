@@ -1,0 +1,119 @@
+# Dependencies installed by Composer and npm; reinstall from the lockfiles.
+/node_modules/
+/vendor/
+
+# Laravel Mix development marker and public storage symlink.
+/public/hot
+/public/storage
+
+# E2E browser dependencies are installed separately from the application.
+/tests/e2e/node_modules/
+
+# Local runtime configuration. Keep example templates available to Git.
+.env
+.env.backup
+.env.*
+!.env.example
+!.env.*.example
+
+# Private keys and certificate stores; never commit local signing material.
+*.pem
+*.p12
+*.pfx
+*.key
+*.jks
+*.keystore
+
+# Local/test databases. Commit migrations and seeders instead of database files.
+*.sqlite
+*.sqlite3
+*.db
+
+# PHPUnit writes these local result caches.
+/.phpunit.result.cache
+/.phpunit.cache
+
+# Playwright output and machine-generated E2E result artifacts.
+/tests/e2e/playwright-report/
+/tests/e2e/test-results/
+/tests/e2e/reports/playwright-html*/
+/tests/e2e/reports/*.json
+/tests/e2e/reports/AUTO-TEST-*.md
+/tests/e2e/reports/NCR-*.md
+/tests/e2e/reports/fresh-scenario-*.md
+/tests/e2e/reports/*.html
+/tests/e2e/reports/*.log
+/tests/e2e/reports/*-visual-validation-*/
+/tests/e2e/reports/dev-ui-improvement-*/
+# Screenshot, video, network capture, and trace artifacts saved at report root.
+/tests/e2e/reports/*.png
+/tests/e2e/reports/*.jpg
+/tests/e2e/reports/*.jpeg
+/tests/e2e/reports/*.webp
+/tests/e2e/reports/*.webm
+/tests/e2e/reports/*.har
+/tests/e2e/reports/*.trace
+
+# Project archives and rollback copies are local backups, not source files.
+*.zip
+/VertexPL-old/
+/VertexPL-rollback-backup-*/
+/output/pdf/
+/tmp/
+
+# Machine-specific configuration and local agent/editor state.
+/docker-compose.override.yml
+/Homestead.json
+/Homestead.yaml
+/.idea/
+/.vscode/
+/.agents/
+/.impeccable/
+/.serena/
+
+# Runtime logs and operating-system metadata.
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local mock-account notes may contain test-user data.
+/NCR_MOCK_USERS.md
+
+
+zip-project.bat
+
+# Agent instruction and prompt files are local workspace guidance.
+AGENTS
+AGENTS.*
+**/AGENTS
+**/AGENTS.*
+
+# Local maintenance helpers and temporary validation pages.
+/AGENTS.md_bak
+/AGENTS_PROMPT.TXT
+/artisan-clear-migrate.bat
+/zip-project.bat
+/public/date-format-check.html
+
+# Generated output and scratch workspace files.
+/output/
+/tmp/
+/docs/
+
+
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.phpunit.result.cache
+docker-compose.override.yml
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.idea
+/.vscode

@@ -1,0 +1,15 @@
+<x-app-layout>
+    <x-slot name="header">
+        <div>
+            <p class="text-sm font-medium text-indigo-600">System Settings</p>
+            <h1 class="mt-1 text-2xl font-bold text-slate-900">เพิ่มการตั้งค่า</h1>
+            <p class="mt-1 text-sm text-slate-500">สร้างค่ากลางใหม่สำหรับระบบ</p>
+        </div>
+    </x-slot>
+    <div class="p-4 sm:p-6">
+        <form method="POST" action="{{ route('settings.store') }}">
+            @csrf
+            @include('settings._form')
+        </form>
+    </div>
+</x-app-layout>
