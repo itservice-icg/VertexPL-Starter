@@ -35,6 +35,28 @@ class NcrVisibilityService
         });
     }
 
+    public function scopeForDashboard(Builder $query, User $user): Builder
+    {
+        $this->scope($query, $user);
+
+        if (! $user->can('ncr.view.all')) {
+            if ($user->department_id) {
+                $departmentId = $user->department_id;
+                $query->where(function (Builder $visibleDepartment) use ($departmentId) {
+                    $visibleDepartment->where('reporter_department_id', $departmentId)
+                        ->orWhere('current_owner_department_id', $departmentId)
+                        ->orWhere('related_department_id', $departmentId)
+                        ->orWhereHas('dispositions', fn (Builder $disposition) => $disposition->where('responsible_department_id', $departmentId))
+                        ->orWhereHas('correctiveActions', fn (Builder $action) => $action->where('responsible_department_id', $departmentId));
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        return $query->where('current_status', '!=', 'DRAFT');
+    }
+
     public function canView(NcrReport $report, User $user): bool
     {
         return $this->scope(NcrReport::query()->whereKey($report->id), $user)->exists();

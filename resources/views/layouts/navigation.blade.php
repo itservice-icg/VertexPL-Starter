@@ -24,7 +24,7 @@
         </button>
     </div>
 
-    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5">
+    <nav class="app-sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3 py-5">
         <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">เมนูหลัก</p>
 
         @can('dashboard.view')
@@ -39,18 +39,18 @@
 
             <a href="{{ route('ncr.index') }}" class="{{ $isNcrMenuActive ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition" @if($isNcrMenuActive) aria-current="page" @endif>
                 <i class="ph ph-clipboard-text h-5 w-5 shrink-0 text-xl leading-none" aria-hidden="true"></i>
-                NCR
+                รายการ NCR
             </a>
             
             @php($isNcrTasksActive = request()->routeIs('ncr.tasks'))
             <a href="{{ route('ncr.tasks') }}" class="{{ $isNcrTasksActive ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} flex items-center gap-3 rounded-lg px-3 py-2.5 pl-11 text-sm font-medium transition" @if($isNcrTasksActive) aria-current="page" @endif>
                 <i class="ph ph-list-checks h-4 w-4 shrink-0 text-base leading-none" aria-hidden="true"></i>
-                NCR My Tasks
+                งาน NCR ของฉัน
             </a>
             @php($isNotificationsActive = request()->routeIs('notifications.*'))
             <a href="{{ route('notifications.index') }}" class="{{ $isNotificationsActive ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} flex items-center gap-3 rounded-lg px-3 py-2.5 pl-11 text-sm font-medium transition" @if($isNotificationsActive) aria-current="page" @endif>
                 <i class="ph ph-bell h-4 w-4 shrink-0 text-base leading-none" aria-hidden="true"></i>
-                Notifications
+                การแจ้งเตือน
             </a>
             @can('ncr.master.manage')
                 @php($isNcrMasterMenuActive = request()->routeIs('ncr-masters.*'))
@@ -164,7 +164,7 @@
         @can('system.audit.view')
             <a href="{{ route('audit-logs.index') }}" class="{{ request()->routeIs('audit-logs.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }} flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition">
                 <i class="ph ph-clipboard-text h-5 w-5 shrink-0 text-xl leading-none" aria-hidden="true"></i>
-                Audit Log
+                บันทึกการตรวจสอบ
             </a>
         @endcan
 

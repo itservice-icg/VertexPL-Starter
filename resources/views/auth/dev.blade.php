@@ -1,6 +1,6 @@
 <x-guest-layout>
     <main class="min-h-screen bg-slate-100 px-4 py-6">
-        <div class="mx-auto max-w-4xl">
+        <div class="mx-auto max-w-6xl">
             <h1 class="text-2xl font-bold text-slate-900">VertexPL — Dev Login</h1>
             <p class="mt-2 text-sm leading-6 text-slate-600">เลือกบัญชีเพื่อเข้าสู่ระบบทดสอบได้ทันที โดยไม่ต้องกรอกรหัสผ่าน หน้านี้ใช้ได้เฉพาะ environment local และ testing</p>
 
@@ -21,8 +21,8 @@
                         @foreach ($departmentUsers as $user)
                             <form method="POST" action="{{ route('dev.store') }}" class="grid gap-3 border-t border-slate-200 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
                                 @csrf
-                                <div class="grid min-w-0 gap-2 text-xs sm:grid-cols-2 sm:items-center sm:gap-x-4 sm:gap-y-2 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
-                                    <div class="min-w-0 sm:col-span-2 md:col-span-1">
+                                <div class="grid min-w-0 grid-cols-2 gap-2 text-xs sm:items-center sm:gap-x-4 sm:gap-y-2 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                                    <div class="col-span-2 min-w-0 md:col-span-1">
                                         <p class="text-sm font-semibold text-slate-900">{{ $user->name }}</p>
                                         <p class="mt-1 flex min-w-0 gap-1 text-xs"><span class="shrink-0 font-semibold text-slate-600">บัญชี</span><span class="break-all font-mono text-slate-700">{{ $user->email }}</span></p>
                                     </div>

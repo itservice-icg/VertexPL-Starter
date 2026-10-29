@@ -33,12 +33,15 @@ abstract class NcrMasterData extends Model
             Product::class => [['ncr_items', 'product_id']],
             Customer::class => [['ncr_items', 'customer_id']],
             Supplier::class => [['ncr_reports', 'supplier_id']],
+            NcrFormScope::class => [['ncr_reports', 'legacy_form_scope_code', 'code']],
         ];
 
         $count = 0;
-        foreach ($references[static::class] ?? [] as [$table, $column]) {
+        foreach ($references[static::class] ?? [] as $reference) {
+            [$table, $column] = $reference;
             if (Schema::hasTable($table) && Schema::hasColumn($table, $column)) {
-                $count += DB::table($table)->where($column, $this->getKey())->count();
+                $value = isset($reference[2]) ? $this->getAttribute($reference[2]) : $this->getKey();
+                $count += DB::table($table)->where($column, $value)->count();
             }
         }
 

@@ -10,6 +10,7 @@
     'customers' => 'ph-users-three',
     'suppliers' => 'ph-buildings',
     'notification-rules' => 'ph-bell',
+    'form-scopes' => 'ph-selection',
 ])
 
 <i {{ $attributes->merge(['class' => 'ph '.($iconClasses[$type] ?? 'ph-squares-four').' h-4 w-4 shrink-0 text-base leading-none', 'aria-hidden' => 'true']) }}></i>

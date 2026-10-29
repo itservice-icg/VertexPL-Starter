@@ -26,7 +26,7 @@
             </div>
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2 xl:col-span-1">
                 <p class="text-sm font-medium text-slate-500">เข้าสู่ระบบล่าสุด</p>
-                <p class="mt-2 text-lg font-bold text-slate-800">{{ Auth::user()->last_login_at ? Auth::user()->last_login_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i') : '-' }}</p>
+                <p class="mt-2 text-lg font-bold text-slate-800">{{ Auth::user()->last_login_at ? \App\Support\ThaiDateFormatter::formatDateTime(Auth::user()->last_login_at, config('app.display_timezone')) : '-' }}</p>
             </div>
         </div>
     </div>

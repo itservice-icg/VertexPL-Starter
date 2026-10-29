@@ -7,8 +7,8 @@
     <div class="ncr-page ncr-form ncr-create-page w-full space-y-4 px-3 py-3 sm:px-5 sm:py-4">
 
         <header class="ncr-create-heading">
-            <h1>{{ $editing ? 'แก้ไข '.$ncr->ncr_no : 'สร้าง Non-Conformance Report ใหม่' }}</h1>
-            <p>เตรียมวันที่พบ หน่วยงาน สินค้า เลข Lot จำนวนที่พบ รายละเอียดปัญหา และหลักฐาน · <span>* ข้อมูลบังคับ</span></p>
+            <h1>{{ $editing ? 'แก้ไข '.$ncr->ncr_no : 'สร้างรายงาน NCR ใหม่' }}</h1>
+            <p>กรอกข้อมูลเหตุการณ์ เลือกสินค้า และระบุรายละเอียดที่พบ · <span>* ข้อมูลบังคับ</span></p>
             @if($editing && ! empty($returnReason))
                 <p class="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"><strong>เหตุผลที่ส่งกลับให้แก้ไข:</strong> {{ $returnReason }}</p>
             @endif
@@ -84,40 +84,45 @@
                 {{-- ข้อมูลวันที่ --}}
                 <div id="ncr-context" class="ncr-form-section ncr-form-section--compact scroll-mt-28 p-3 sm:p-4">
                     <div class="ncr-form-section__header ncr-compact-section-header -mx-3 -mt-3 mb-3 sm:-mx-4 sm:-mt-4">
-                        <p class="ncr-stage-kicker">Section 01 · Context</p>
                         <h2 class="ncr-section-title mt-1">ข้อมูลเหตุการณ์</h2>
-                        <p class="ncr-section-description mt-1">วันที่และขอบเขตของแบบฟอร์ม NCR</p>
+                        <p class="ncr-section-description mt-1">กำหนดวันที่ของรายงานและเลือกแบบฟอร์มที่ใช้</p>
                     </div>
                     <div class="ncr-compact-grid grid grid-cols-1 gap-3 sm:grid-cols-2">
 
                         <div>
                             <x-label
-                                value="AI / UP"
+                                value="แบบฟอร์มที่ใช้"
                                 class="text-sm font-semibold text-slate-700" />
 
                             @php
-                            $scopeCodes = array_slice(old(
-                            'legacy_form_scope_codes',
-                            filled($v('legacy_form_scope_code'))
-                            ? explode(',', $v('legacy_form_scope_code'))
-                            : []
-                            ), 0, 1);
+                            $oldScopeCodes = old('legacy_form_scope_codes');
+                            $scopeCodes = array_slice(is_array($oldScopeCodes) ? $oldScopeCodes : (filled($v('legacy_form_scope_code')) ? explode(',', $v('legacy_form_scope_code')) : []), 0, 1);
+                            $selectedScopeCode = old('legacy_form_scope_code', $scopeCodes[0] ?? '');
+                            $previousScopeCode = old('legacy_form_scope_code_previous', $editing ? $ncr->legacy_form_scope_code : '');
+                            $previousScopeIsInactive = filled($previousScopeCode) && ! $formScopes->contains('code', $previousScopeCode);
                             @endphp
 
-                            <div class="mt-2 flex min-h-[42px] items-center gap-5 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm">
-                                @foreach (['AI', 'UP'] as $scopeCode)
-                                <label class="inline-flex cursor-pointer items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        name="legacy_form_scope_codes[]"
-                                        value="{{ $scopeCode }}"
-                                        @checked(in_array($scopeCode, $scopeCodes, true))
-                                        onchange="document.querySelectorAll('input[name=&quot;legacy_form_scope_codes[]&quot;]').forEach((input) => { if (input !== this) input.checked = false; })"
-                                        class="rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                                    <span>{{ $scopeCode }}</span>
-                                </label>
+                            <select
+                                id="legacy_form_scope_code"
+                                name="legacy_form_scope_code"
+                                class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 bg-white text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="" {{ $selectedScopeCode === '' ? 'selected' : '' }}>เลือกแบบฟอร์ม</option>
+                                @if($previousScopeIsInactive)
+                                    <option value="__clear__" {{ $selectedScopeCode === '__clear__' ? 'selected' : '' }}>ไม่ระบุแบบฟอร์ม</option>
+                                @endif
+                                @foreach ($formScopes as $formScope)
+                                    <option value="{{ $formScope->code }}" {{ $selectedScopeCode === $formScope->code ? 'selected' : '' }}>
+                                        {{ $formScope->code }} — {{ $formScope->name_th }}
+                                    </option>
                                 @endforeach
-                            </div>
+                            </select>
+                            @if($previousScopeIsInactive)
+                                <input type="hidden" name="legacy_form_scope_code_previous" value="{{ $previousScopeCode }}">
+                            @endif
+                            @if($previousScopeIsInactive)
+                                <p class="mt-1 text-xs text-slate-500">แบบฟอร์มเดิมปิดใช้งาน ระบบจะเก็บค่าเดิมไว้ หากต้องการเปลี่ยน ให้เลือกแบบฟอร์มที่เปิดใช้งาน</p>
+                            @endif
+                            @error('legacy_form_scope_code') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
@@ -129,7 +134,7 @@
                                 type="date"
                                 name="report_date"
                                 class="mt-2 block min-h-[42px] w-full"
-                                value="{{ $v('report_date', date('Y-m-d')) }}"
+                                value="{{ $v('report_date', now(config('app.display_timezone'))->toDateString()) }}"
                                 required />
                         </div>
 
@@ -142,7 +147,7 @@
                                 type="date"
                                 name="found_date"
                                 class="mt-2 block min-h-[42px] w-full"
-                                value="{{ $v('found_date', date('Y-m-d')) }}"
+                                value="{{ $v('found_date', now(config('app.display_timezone'))->toDateString()) }}"
                                 required />
                         </div>
 
@@ -155,7 +160,7 @@
                                 type="time"
                                 name="found_time"
                                 class="mt-2 block min-h-[42px] w-full"
-                                value="{{ $v('found_time', $editing ? '' : now()->format('H:i')) }}" />
+                                value="{{ $v('found_time', $editing ? '' : now(config('app.display_timezone'))->format('H:i')) }}" />
                         </div>
 
                     </div>
@@ -198,9 +203,8 @@
                 {{-- ประเภท / ความรุนแรง / หน่วยงาน --}}
                 <div id="ncr-classification" class="ncr-form-section ncr-form-section--compact scroll-mt-28 p-3 sm:p-4">
                     <div class="ncr-form-section__header ncr-compact-section-header -mx-3 -mt-3 mb-3 sm:-mx-4 sm:-mt-4">
-                        <p class="ncr-stage-kicker">Section 02 · Classification</p>
                         <h2 class="ncr-section-title mt-1">ประเภทและหน่วยงาน</h2>
-                        <p class="ncr-section-description mt-1">จัดหมวดหมู่เหตุการณ์และระบุหน่วยงานที่พบปัญหา</p>
+                        <p class="ncr-section-description mt-1">ระบุประเภทเหตุการณ์ ระดับความรุนแรง และหน่วยงานที่พบปัญหา</p>
                     </div>
 
                     <div class="ncr-compact-grid grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -235,7 +239,7 @@
                                 name="severity_level_id"
                                 class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500"
                                 required>
-                                <option value="">เลือก</option>
+                                <option value="">เลือกระดับความรุนแรง</option>
 
                                 @foreach($severityLevels as $x)
                                 <option
@@ -272,17 +276,34 @@
 
 
                 {{-- ข้อมูลทั่วไป --}}
+                @php($selectedCompanyCustomer = $customers->firstWhere('name_th', $v('company_name')))
                 <div id="ncr-reference" class="ncr-form-section ncr-form-section--compact scroll-mt-28 p-3 sm:p-4 lg:col-span-2">
                     <div class="ncr-form-section__header ncr-compact-section-header -mx-3 -mt-3 mb-3 sm:-mx-4 sm:-mt-4">
-                        <p class="ncr-stage-kicker">Section 03 · Reference</p>
                         <h2 class="ncr-section-title mt-1">ข้อมูลอ้างอิง</h2>
-                        <p class="ncr-section-description mt-1">ข้อมูลสินค้า ผู้ผลิต พื้นที่ และกระบวนการที่เกี่ยวข้อง</p>
+                        <p class="ncr-section-description mt-1">ข้อมูลลูกค้า สินค้า ผู้ผลิต พื้นที่ และกระบวนการที่เกี่ยวข้อง</p>
                     </div>
 
                     <div class="ncr-compact-grid ncr-reference-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
+                        <div>
+                            <x-label for="company_customer_id" value="ลูกค้า" class="text-sm font-semibold text-slate-700" />
+                            <select id="company_customer_id" name="company_customer_id" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">ไม่ระบุลูกค้า</option>
+                                @if($v('company_name') && ! $selectedCompanyCustomer)
+                                    <option value="legacy" {{ old('company_customer_id', 'legacy') === 'legacy' ? 'selected' : '' }}>ข้อมูลเดิมที่ยังไม่ผูกทะเบียน: {{ $v('company_name') }}</option>
+                                @endif
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}" {{ (string) old('company_customer_id', optional($selectedCompanyCustomer)->id) === (string) $customer->id ? 'selected' : '' }}>{{ $customer->code }} — {{ $customer->name_th }}</option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="company_name" value="{{ $v('company_name') }}">
+                            @if(! $selectedCompanyCustomer && $v('company_name'))
+                                <p class="mt-1 text-xs text-slate-500">ข้อมูลเดิมที่ยังไม่ผูกทะเบียน: {{ $v('company_name') }}</p>
+                            @endif
+                            @error('company_customer_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
                         @foreach([
-                        'company_name' => 'บริษัท',
                         'generic_name' => 'ชื่อสามัญ',
                         'reference_no' => 'เลขที่อ้างอิง',
                         'found_location' => 'พื้นที่ที่พบ',
@@ -337,10 +358,10 @@
                 x-data='{ 
                     items: {!! json_encode($initialItems, JSON_HEX_APOS | JSON_HEX_QUOT) !!},
                     products: {!! json_encode($products->map(fn($product) => ['id' => $product->id, 'code' => $product->code, 'name' => $product->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
-                    customers: {!! json_encode($customers->map(fn($customer) => ['id' => $customer->id, 'name' => $customer->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
                     editingIndex: null,
                     itemDialogOpen: false,
                     itemDraft: {},
+                    selectedProductChoice: "",
                     emptyItem() {
                         return {
                             id: null,
@@ -363,6 +384,7 @@
                     selectProduct(value) {
                         const previousProductId = this.itemDraft.product_id;
                         const product = this.products.find((option) => String(option.id) === String(value));
+                        this.selectedProductChoice = value || "";
                         this.itemDraft.product_id = value || null;
                         if (product) {
                             this.itemDraft.product_code = product.code;
@@ -372,17 +394,11 @@
                             this.itemDraft.product_name = "";
                         }
                     },
-                    selectCustomer(value) {
-                        const previousCustomerId = this.itemDraft.customer_id;
-                        const customer = this.customers.find((option) => String(option.id) === String(value));
-                        this.itemDraft.customer_id = value || null;
-                        if (customer) this.itemDraft.customer_name = customer.name;
-                        else if (previousCustomerId || !this.itemDraft.id) this.itemDraft.customer_name = "";
-                    },
                     addItem() {
                         if (this.items.length >= 50) return;
                         this.editingIndex = null;
                         this.itemDraft = this.emptyItem();
+                        this.selectedProductChoice = "";
                         this.$nextTick(() => {
                             this.$refs.itemDialog.showModal();
                             this.itemDialogOpen = true;
@@ -391,6 +407,9 @@
                     editItem(index) {
                         this.editingIndex = index;
                         this.itemDraft = { ...this.items[index] };
+                        this.selectedProductChoice = this.products.some((product) => String(product.id) === String(this.itemDraft.product_id))
+                            ? this.itemDraft.product_id
+                            : "";
                         this.$nextTick(() => {
                             this.$refs.itemDialog.showModal();
                             this.itemDialogOpen = true;
@@ -425,11 +444,11 @@
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <h2 class="text-base font-bold text-slate-900 sm:text-lg">
-                                ข้อมูลผลิตภัณฑ์ / รายงาน
+                                รายการสินค้าและรายละเอียดที่พบ
                             </h2>
 
                             <p class="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
-                                รายการผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด
+                                เลือกสินค้าและกรอกจำนวนที่พบในแต่ละรายการ พร้อมเพิ่มรายละเอียดความผิดปกติ
                             </p>
                         </div>
 
@@ -439,7 +458,7 @@
                             x-bind:disabled="items.length >= 50"
                             x-bind:aria-disabled="items.length >= 50"
                             class="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50">
-                            + เพิ่มรายการ
+                            + เพิ่มรายการสินค้า
                         </button>
                     </div>
 
@@ -465,8 +484,8 @@
                             <tbody class="divide-y divide-slate-200">
                                 <tr x-show="items.length === 0">
                                     <td colspan="6" class="px-4 py-10 text-center">
-                                        <p class="font-semibold text-slate-700">ยังไม่มีรายการผลิตภัณฑ์</p>
-                                        <p class="mt-1 text-sm text-slate-500">เลือก “เพิ่มรายการ” เพื่อบันทึกสินค้าและรายละเอียดที่พบ</p>
+                                        <p class="font-semibold text-slate-700">ยังไม่มีรายการสินค้า</p>
+                                        <p class="mt-1 text-sm text-slate-500">เลือก “เพิ่มรายการสินค้า” แล้วกรอกสินค้าและจำนวนที่พบ</p>
                                     </td>
                                 </tr>
                                 <template
@@ -531,7 +550,7 @@
                     </div>
 
                     <p class="mt-2 px-1 text-xs leading-5 text-slate-500">
-                        เลือก “เพิ่มรายการ” เพื่อบันทึกสินค้า หรือ “แก้ไข” เพื่อปรับข้อมูลรายการเดิม (เพิ่มได้สูงสุด 50 รายการ)
+                        เลือก “เพิ่มรายการสินค้า” เพื่อกรอกข้อมูล หรือ “แก้ไข” เพื่อปรับรายการเดิม เพิ่มได้สูงสุด 50 รายการ
                     </p>
 
                 </div>
@@ -542,9 +561,9 @@
                     <fieldset x-ref="itemEditor" disabled x-bind:disabled="!itemDialogOpen" class="m-0 max-h-[calc(100vh_-_2rem)] min-w-0 overflow-y-auto border-0 p-0">
                         <div class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
                             <div>
-                                <p class="text-xs font-bold uppercase tracking-wider text-indigo-600">Product / Report</p>
+                                <p class="text-xs font-bold uppercase tracking-wider text-indigo-600">รายละเอียดสินค้า</p>
                                 <h3 id="ncr-item-dialog-title" class="mt-1 text-lg font-bold text-slate-900"
-                                    x-text="editingIndex === null ? 'เพิ่มรายการผลิตภัณฑ์' : 'แก้ไขรายการที่ ' + (editingIndex + 1)"></h3>
+                                    x-text="editingIndex === null ? 'เพิ่มรายการสินค้า' : 'แก้ไขรายการสินค้า ' + (editingIndex + 1)"></h3>
                             </div>
                             <button type="button" x-on:click="$refs.itemDialog.close()" aria-label="ปิดหน้าต่าง"
                                 class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -555,13 +574,13 @@
                         <div class="grid grid-cols-1 gap-4 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
                             <div class="sm:col-span-2 lg:col-span-3">
                                 <label for="item-product-reference" class="block text-sm font-semibold text-slate-700">สินค้า <span class="text-red-600">*</span></label>
-                                <select id="item-product-reference" x-model="itemDraft.product_id" x-on:change="selectProduct($event.target.value)" x-bind:required="!itemDraft.product_id && (!itemDraft.id || !itemDraft.product_name)" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="" x-text="itemDraft.id && itemDraft.product_name ? 'ค่าเดิมที่ยังไม่ผูกทะเบียน' : 'เลือกสินค้าจากทะเบียนกลาง'"></option>
+                                <select id="item-product-reference" x-model="selectedProductChoice" x-on:change="selectProduct($event.target.value)" x-bind:required="!itemDraft.product_id && (!itemDraft.id || !itemDraft.product_name)" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="" x-text="itemDraft.id && itemDraft.product_id && !products.some((product) => String(product.id) === String(itemDraft.product_id)) ? 'สินค้าเดิมปิดใช้งาน (เก็บข้อมูลเดิม)' : (itemDraft.id && itemDraft.product_name ? 'ค่าเดิมที่ยังไม่ผูกทะเบียน' : 'เลือกสินค้า')"></option>
                                     @foreach($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->code }} — {{ $product->name_th }}{{ $product->is_active && ! $product->trashed() ? '' : ' (ปิดใช้งาน)' }}</option>
+                                        <option value="{{ $product->id }}">{{ $product->code }} — {{ $product->name_th }}</option>
                                     @endforeach
                                 </select>
-                                <p x-show="itemDraft.product_name" x-text="itemDraft.product_id ? 'ข้อมูลอ้างอิง: ' + itemDraft.product_code + ' — ' + itemDraft.product_name : 'Snapshot เดิม: ' + itemDraft.product_code + ' — ' + itemDraft.product_name" class="mt-1 text-xs text-slate-500"></p>
+                                <p x-show="itemDraft.product_name" x-text="itemDraft.product_id ? (products.some((product) => String(product.id) === String(itemDraft.product_id)) ? 'ข้อมูลจากทะเบียน: ' : 'สินค้าเดิมปิดใช้งาน (เก็บข้อมูลเดิม): ') + itemDraft.product_code + ' — ' + itemDraft.product_name : 'ข้อมูลสินค้าเดิม: ' + itemDraft.product_code + ' — ' + itemDraft.product_name" class="mt-1 text-xs text-slate-500"></p>
                             </div>
                             <label class="block text-sm font-semibold text-slate-700">Lot No.
                                 <input type="text" x-model="itemDraft.lot_no" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -572,16 +591,6 @@
                             <label class="block text-sm font-semibold text-slate-700">Batch No.
                                 <input type="text" x-model="itemDraft.batch_no" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             </label>
-                            <div class="sm:col-span-2 lg:col-span-3">
-                                <label for="item-customer-reference" class="block text-sm font-semibold text-slate-700">ลูกค้า (ถ้ามี)</label>
-                                <select id="item-customer-reference" x-model="itemDraft.customer_id" x-on:change="selectCustomer($event.target.value)" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">ไม่ระบุลูกค้า</option>
-                                    @foreach($customers as $customer)
-                                        <option value="{{ $customer->id }}">{{ $customer->code }} — {{ $customer->name_th }}{{ $customer->is_active && ! $customer->trashed() ? '' : ' (ปิดใช้งาน)' }}</option>
-                                    @endforeach
-                                </select>
-                                <p x-show="itemDraft.customer_name" x-text="itemDraft.customer_id ? 'ข้อมูลอ้างอิง: ' + itemDraft.customer_name : 'ข้อมูลเดิมที่ยังไม่ผูกทะเบียน: ' + itemDraft.customer_name" class="mt-1 text-xs text-slate-500"></p>
-                            </div>
                             <label class="block text-sm font-semibold text-slate-700">จำนวนที่พบ <span class="text-red-600">*</span>
                                 <input type="number" step="0.0001" min="0" x-model="itemDraft.defect_quantity" required class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             </label>
@@ -594,7 +603,7 @@
                                 </select>
                             </label>
                             <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                <p class="text-sm font-semibold text-slate-700">คิดเป็นร้อยละ</p>
+                                <p class="text-sm font-semibold text-slate-700">สัดส่วนที่พบ</p>
                                 <output class="mt-2 block text-lg font-bold text-indigo-700"
                                     x-text="Number(itemDraft.total_quantity) > 0 ? ((Number(itemDraft.defect_quantity) / Number(itemDraft.total_quantity)) * 100).toFixed(2) + '%' : '-'">-</output>
                             </div>
@@ -609,7 +618,7 @@
                                     @endforeach
                                 </select>
                             </label>
-                            <label class="block text-sm font-semibold text-slate-700 sm:col-span-2 lg:col-span-3">ลักษณะผิดปกติ / รายละเอียด
+                            <label class="block text-sm font-semibold text-slate-700 sm:col-span-2 lg:col-span-3">รายละเอียดความผิดปกติ
                                 <textarea x-model="itemDraft.problem_description" rows="4" class="mt-2 block w-full resize-y rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
                             </label>
                         </div>
@@ -632,13 +641,13 @@
             {{-- รายละเอียดและไฟล์ --}}
             <div id="ncr-evidence" class="ncr-form-section ncr-form-section--compact scroll-mt-28 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
 
-                <div class="ncr-description-grid grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+                <div class="ncr-description-grid space-y-4">
 
                     <div>
                         <x-label
                             value="สรุปเหตุการณ์ NCR (ภาพรวม)"
                             class="text-sm font-semibold text-slate-700" />
-                        <p class="mt-1 text-xs leading-5 text-slate-500">สรุปเหตุการณ์ระดับ NCR ใช้เป็นบริบทกลางของทุกขั้นตอน ไม่แทนรายละเอียดเฉพาะรายการสินค้า</p>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">อธิบายภาพรวมของเหตุการณ์ ส่วนรายละเอียดเฉพาะสินค้าให้กรอกในแต่ละรายการ</p>
 
                         <textarea
                             name="problem_description"
@@ -648,10 +657,11 @@
                     </div>
 
 
-                    <div>
+                    <div class="border-t border-slate-200 pt-3">
                         <x-label
-                            value="ไฟล์แนบ (สูงสุด 10 MB/ไฟล์)"
+                            value="ไฟล์แนบ"
                             class="text-sm font-semibold text-slate-700" />
+                        <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ PDF, JPG/JPEG/PNG, XLS/XLSX และ DOCX · ไฟล์ละไม่เกิน 10 MB</p>
 
                         <input
                             type="file"
@@ -674,7 +684,7 @@
             {{-- Actions --}}
             <div class="ncr-form-actions flex flex-col-reverse gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3">
 
-                <p class="hidden text-sm text-slate-500 sm:block">ตรวจสอบข้อมูลบังคับก่อนบันทึก ระบบจะเก็บรายการเป็น Draft</p>
+                <p class="hidden text-sm text-slate-500 sm:block">กรอกช่องที่มี * และเพิ่มรายการสินค้าอย่างน้อย 1 รายการก่อนบันทึกเป็นฉบับร่าง</p>
 
                 <div class="flex flex-col-reverse gap-2 sm:flex-row">
 
@@ -687,7 +697,7 @@
                     <button
                         type="submit"
                         class="inline-flex min-h-[42px] items-center justify-center rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                        บันทึก Draft
+                        บันทึกเป็นฉบับร่าง
                     </button>
 
                 </div>

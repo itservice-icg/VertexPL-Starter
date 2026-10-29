@@ -31,7 +31,7 @@ class NcrDashboardVisibilityTest extends TestCase
         $response = $this->actingAs($admin)
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('รายการจากทุกหน่วยงาน สูงสุด 12 รายการ')
+            ->assertSee('รายการจากทุกหน่วยงาน สูงสุด 10 รายการ')
             ->assertSee('NCR-2026-MFG-00001')
             ->assertSee('NCR-2026-QA-00001');
 
@@ -60,6 +60,59 @@ class NcrDashboardVisibilityTest extends TestCase
         $this->assertSame(1, $response->viewData('open'));
         $this->assertSame(1, $response->viewData('counts')['ACTION_IN_PROGRESS']);
         $this->assertCount(1, $response->viewData('recent'));
+    }
+
+    public function test_dashboard_metrics_link_to_filtered_reports_in_the_same_scope(): void
+    {
+        $userDepartment = $this->department('USER-PRIORITY', 'ฝ่ายผู้ใช้');
+        $otherDepartment = $this->department('OTHER-PRIORITY', 'อีกหน่วยงาน');
+        $user = User::factory()->create(['department_id' => $userDepartment->id]);
+        $user->givePermissionTo(
+            Permission::findOrCreate('dashboard.view', 'web'),
+            Permission::findOrCreate('ncr.view', 'web')
+        );
+
+        $overdue = $this->report('NCR-2026-USER-OVERDUE', $userDepartment, $user);
+        $overdue->update(['due_date' => now()->subDay()->toDateString()]);
+
+        $notYetDue = $this->report('NCR-2026-USER-NOT-DUE', $userDepartment, $user);
+        $notYetDue->update(['due_date' => now()->addDay()->toDateString()]);
+
+        $closedOverdue = $this->report('NCR-2026-USER-CLOSED', $userDepartment, $user);
+        $closedOverdue->update(['current_status' => 'CLOSED', 'due_date' => now()->subDay()->toDateString()]);
+
+        $draftOverdue = $this->report('NCR-2026-USER-DRAFT', $userDepartment, $user);
+        $draftOverdue->update(['current_status' => 'DRAFT', 'due_date' => now()->subDay()->toDateString()]);
+
+        $managerApproval = $this->report('NCR-2026-USER-MANAGER', $userDepartment, $user);
+        $managerApproval->update(['current_status' => 'PENDING_MANAGER_APPROVAL']);
+
+        $destructionApproval = $this->report('NCR-2026-USER-SCRAP', $userDepartment, $user);
+        $destructionApproval->update(['current_status' => 'PENDING_DESTRUCTION_APPROVAL']);
+
+        $outsideScope = $this->report('NCR-2026-OTHER-OVERDUE', $otherDepartment);
+        $outsideScope->update([
+            'current_owner_user_id' => $user->id,
+            'current_owner_department_id' => $otherDepartment->id,
+            'due_date' => now()->subDay()->toDateString(),
+        ]);
+
+        $dashboard = $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee(str_replace('&', '&amp;', route('ncr.index', ['overdue' => 1, 'dashboard_scope' => 1])), false)
+            ->assertSee(str_replace('&', '&amp;', route('ncr.index', ['status' => 'PENDING_MANAGER_APPROVAL', 'dashboard_scope' => 1])), false)
+            ->assertSee(str_replace('&', '&amp;', route('ncr.index', ['status' => 'PENDING_DESTRUCTION_APPROVAL', 'dashboard_scope' => 1])), false);
+        $this->assertSame(1, $dashboard->viewData('overdue'));
+
+        $overdueList = $this->get(route('ncr.index', ['overdue' => 1, 'dashboard_scope' => 1]))
+            ->assertOk()
+            ->assertSee('NCR-2026-USER-OVERDUE')
+            ->assertDontSee('NCR-2026-USER-NOT-DUE')
+            ->assertDontSee('NCR-2026-USER-CLOSED')
+            ->assertDontSee('NCR-2026-USER-DRAFT')
+            ->assertDontSee('NCR-2026-OTHER-OVERDUE');
+        $this->assertSame(1, $overdueList->viewData('reports')->total());
     }
 
     private function department(string $code, string $name): Department

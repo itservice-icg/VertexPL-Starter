@@ -45,7 +45,6 @@ class AuditLogController extends Controller
         return view('audit-logs.index', [
             'logs' => $logs,
             'filters' => $filters,
-            'actions' => AuditLog::query()->select('action')->distinct()->orderBy('action')->pluck('action'),
         ]);
     }
 }

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\DispositionType;
 use App\Models\NotificationRule;
+use App\Models\NcrFormScope;
 use App\Models\ProblemType;
 use App\Models\RootCauseType;
 use App\Models\SeverityLevel;
@@ -49,6 +50,7 @@ class NcrFoundationSeeder extends Seeder
         ]);
         $this->seed(RootCauseType::class, [['MAN','บุคลากร'],['MACHINE','เครื่องจักร'],['METHOD','วิธีการ'],['MATERIAL','วัตถุดิบ'],['MEASUREMENT','การวัด'],['ENVIRONMENT','สิ่งแวดล้อม']]);
         $this->seed(Unit::class, [['PCS','ชิ้น'],['KG','กิโลกรัม'],['G','กรัม'],['L','ลิตร'],['BOX','กล่อง'],['LOT','ล็อต']]);
+        $this->seed(NcrFormScope::class, [['AI','AI'],['UP','UP']]);
         NotificationRule::firstOrCreate(['code' => 'NCR_SUBMITTED'], ['name_th' => 'แจ้งเตือนเมื่อส่ง NCR', 'event' => 'ncr.submitted', 'channels' => ['database'], 'is_active' => true]);
 
         $statuses = ['DRAFT','RETURNED_FOR_CORRECTION','INITIAL_REVIEW','PENDING_MANAGER_APPROVAL','RETURNED_FOR_DISPOSITION_REVISION','PENDING_DESTRUCTION_APPROVAL','DISPOSITION_APPROVED','ACTION_IN_PROGRESS','PENDING_ACTION_VERIFICATION','RETURNED_FOR_REWORK','QA_VERIFIED','CLOSED'];

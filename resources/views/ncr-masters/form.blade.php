@@ -6,7 +6,7 @@
             <x-auth-validation-errors :errors="$errors" />
             <div>
                 <x-label for="code" value="รหัส"/>
-                <x-input id="code" name="code" class="mt-1 block w-full" value="{{ old('code', $record->code ?? '') }}" maxlength="100" pattern="[A-Za-z0-9_-]+" title="ใช้ A-Z ตัวเลข - หรือ _ เช่น P-001" required />
+                <x-input id="code" name="code" class="mt-1 block w-full" value="{{ old('code', $record->code ?? '') }}" maxlength="{{ $definition['code_max'] ?? 100 }}" pattern="[A-Za-z0-9_-]+" title="ใช้ A-Z ตัวเลข - หรือ _ เช่น P-001" required />
                 <p class="mt-1 text-xs text-slate-500">ใช้ A-Z ตัวเลข ขีดกลาง (-) หรือขีดล่าง (_) เช่น P-001; ตัวพิมพ์เล็กจะถูกปรับเป็นตัวพิมพ์ใหญ่</p>
             </div>
             <div><x-label for="name_th" :value="$definition['name_label'] ?? 'ชื่อภาษาไทย'"/><x-input id="name_th" name="name_th" class="mt-1 block w-full" value="{{ old('name_th', $record->name_th ?? '') }}" required /></div>

@@ -1,14 +1,8 @@
 <x-guest-layout>
-    <div class="min-h-screen bg-slate-100 lg:grid lg:grid-cols-2">
-        <section class="relative hidden overflow-hidden bg-slate-900 lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-            <div class="absolute inset-0">
-                <div class="absolute -left-28 -top-28 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
-                <div class="absolute -bottom-32 -right-20 h-96 w-96 rounded-full bg-violet-500/20 blur-3xl"></div>
-                <div class="absolute inset-0 opacity-[0.06]" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 24px 24px;"></div>
-            </div>
-
+    <div class="min-h-screen bg-slate-100 lg:grid lg:grid-cols-3">
+        <section class="relative hidden overflow-hidden bg-slate-900 lg:col-span-1 lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
             <a href="/" class="relative flex items-center gap-3 text-white">
-                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500 text-xl font-bold shadow-lg shadow-indigo-500/30">V</span>
+                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500 text-xl font-bold">V</span>
                 <span>
                     <span class="block text-xl font-bold leading-tight">VertexPL</span>
                     <span class="block text-xs tracking-wide text-slate-400">Vertex PHP Laravel</span>
@@ -16,29 +10,26 @@
             </a>
 
             <div class="relative max-w-xl">
-                <p class="mb-5 inline-flex rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-300">
-                    Internal Application Platform
-                </p>
-                <h1 class="text-4xl font-bold leading-tight text-white xl:text-5xl">
+                <h1 class="text-3xl font-bold leading-tight text-white">
                     ระบบกลางสำหรับงานภายในองค์กร
                 </h1>
-                <p class="mt-5 max-w-lg text-base leading-relaxed text-slate-300">
+                <p class="mt-4 max-w-lg text-sm leading-relaxed text-slate-300">
                     เข้าถึงเครื่องมือและข้อมูลที่จำเป็นจากพื้นที่เดียว พร้อมระบบสิทธิ์ที่ควบคุมการใช้งานตามบทบาทของคุณ
                 </p>
 
-                <div class="mt-9 grid gap-4 sm:grid-cols-2">
-                    <div class="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300">
+                <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                    <div class="min-w-0">
+                        <span class="text-indigo-300">
                             <i class="ph ph-shield-check h-5 w-5 text-xl leading-none" aria-hidden="true"></i>
                         </span>
-                        <p class="mt-3 text-sm font-semibold text-white">Role-based access</p>
+                        <p class="mt-1 text-sm font-semibold text-white">Role-based access</p>
                         <p class="mt-1 text-xs leading-relaxed text-slate-400">แสดงข้อมูลและเมนูตามสิทธิ์ที่ได้รับ</p>
                     </div>
-                    <div class="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/20 text-violet-300">
+                    <div class="min-w-0">
+                        <span class="text-indigo-300">
                             <i class="ph ph-clock h-5 w-5 text-xl leading-none" aria-hidden="true"></i>
                         </span>
-                        <p class="mt-3 text-sm font-semibold text-white">Activity tracking</p>
+                        <p class="mt-1 text-sm font-semibold text-white">Activity tracking</p>
                         <p class="mt-1 text-xs leading-relaxed text-slate-400">รองรับการตรวจสอบการเข้าใช้งานระบบ</p>
                     </div>
                 </div>
@@ -49,17 +40,17 @@
             </p>
         </section>
 
-        <main class="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+        <main class="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:col-span-2 lg:px-12">
             <div class="w-full max-w-md">
                 <div class="mb-10 flex items-center gap-3 lg:hidden">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white shadow-lg shadow-indigo-500/20">V</span>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">V</span>
                     <div>
                         <p class="font-bold leading-tight text-slate-900">VertexPL</p>
                         <p class="text-xs text-slate-500">Internal Application Platform</p>
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+                <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
                     <div>
                         <p class="text-sm font-semibold text-indigo-600">ยินดีต้อนรับกลับ</p>
                         <h2 class="mt-2 text-2xl font-bold text-slate-900">เข้าสู่ระบบ</h2>
@@ -153,7 +144,7 @@
 
                         <button
                             type="submit"
-                            class="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:bg-indigo-800"
+                            class="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:bg-indigo-800"
                         >
                             เข้าสู่ระบบ
                             <i class="ph ph-arrow-right h-4 w-4 text-base leading-none" aria-hidden="true"></i>

@@ -166,9 +166,9 @@
                                 </td>
                                 <td>
                                     <dl class="ncr-corrective-table__stack ncr-corrective-table__dates">
-                                        <div><dt>วันที่รับทราบ</dt><dd>{{ $action->responsible_acknowledged_at ? $action->responsible_acknowledged_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i') : '-' }}</dd></div>
-                                        <div><dt>วันเริ่ม Action</dt><dd>{{ $action->start_date?->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</dd></div>
-                                        <div><dt>กำหนดเสร็จ Action <span>*</span></dt><dd>{{ $action->due_date?->format('d/m/Y') ?: 'ยังไม่กำหนด' }} @if($action->is_overdue)<span class="ncr-corrective-overdue">เลยกำหนด</span>@endif</dd></div>
+                                        <div><dt>วันที่รับทราบ</dt><dd>{{ $action->responsible_acknowledged_at ? \App\Support\ThaiDateFormatter::formatDateTime($action->responsible_acknowledged_at, config('app.display_timezone')) : '-' }}</dd></div>
+                                        <div><dt>วันเริ่ม Action</dt><dd>{{ \App\Support\ThaiDateFormatter::formatDate($action->start_date) ?: 'ยังไม่กำหนด' }}</dd></div>
+                                        <div><dt>กำหนดเสร็จ Action <span>*</span></dt><dd>{{ \App\Support\ThaiDateFormatter::formatDate($action->due_date) ?: 'ยังไม่กำหนด' }} @if($action->is_overdue)<span class="ncr-corrective-overdue">เลยกำหนด</span>@endif</dd></div>
                                     </dl>
                                 </td>
                                 <td class="ncr-corrective-table__detail">{{ $action->corrective_action_detail ?: '-' }}</td>
@@ -223,9 +223,9 @@
                                                     <div><dt>สถานะ</dt><dd>{{ config('ncr.action_status_labels.'.$action->action_status, $action->action_status) }}</dd></div>
                                                     <div><dt>แผนก/ฝ่าย</dt><dd>{{ optional($action->responsibleDepartment)->name_th ?: '-' }}</dd></div>
                                                     <div><dt>ผู้รับผิดชอบ</dt><dd>{{ optional($action->owner)->name ?: '-' }}</dd></div>
-                                                    <div><dt>วันเริ่ม Action</dt><dd>{{ $action->start_date?->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</dd></div>
-                                                    <div><dt>กำหนดเสร็จ Action</dt><dd>{{ $action->due_date?->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</dd></div>
-                                                    <div><dt>วันที่เสร็จ Action</dt><dd>{{ $action->completed_date?->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</dd></div>
+                                                    <div><dt>วันเริ่ม Action</dt><dd>{{ \App\Support\ThaiDateFormatter::formatDate($action->start_date) ?: 'ยังไม่กำหนด' }}</dd></div>
+                                                    <div><dt>กำหนดเสร็จ Action</dt><dd>{{ \App\Support\ThaiDateFormatter::formatDate($action->due_date) ?: 'ยังไม่กำหนด' }}</dd></div>
+                                                    <div><dt>วันที่เสร็จ Action</dt><dd>{{ \App\Support\ThaiDateFormatter::formatDate($action->completed_date) ?: 'ยังไม่กำหนด' }}</dd></div>
                                                     <div><dt>บันทึกผลการดำเนินงาน</dt><dd class="whitespace-pre-line">{{ $action->completion_note ?: '-' }}</dd></div>
                                                 </dl>
                                                 <div>

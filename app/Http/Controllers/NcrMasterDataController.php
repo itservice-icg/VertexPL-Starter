@@ -43,6 +43,10 @@ class NcrMasterDataController extends Controller
     public function update(Request $request, string $type, int $record)
     {
         $definition = $this->definition($type); $record = $this->record($definition, $record); $old = $record->toArray();
+        if (($definition['immutable_code_when_in_use'] ?? false) && $record->isInUse()
+            && strtoupper(trim((string) $request->input('code'))) !== $record->getAttribute('code')) {
+            return back()->withInput()->withErrors(['code' => 'ไม่สามารถเปลี่ยนรหัสได้ เนื่องจากมี NCR อ้างอิงรหัสนี้อยู่']);
+        }
         DB::transaction(function () use ($request, $definition, $record, $old) { $record->update($this->validated($request, $definition, $record)); AuditLogger::log('ncr-master','ncr-master.updated',"แก้ไข {$definition['title']} {$record->getAttribute('code')}",$record,$old,$record->fresh()->toArray()); });
         return redirect()->route('ncr-masters.index', $type)->with('success', 'บันทึกข้อมูลเรียบร้อยแล้ว');
     }
@@ -67,7 +71,7 @@ class NcrMasterDataController extends Controller
     private function validated(Request $request, array $definition, ?NcrMasterData $record = null): array
     {
         $request->merge(['code' => strtoupper(trim((string) $request->input('code', '')))]);
-        $rules = ['code' => ['required','string','max:100','regex:/^[A-Z0-9_\-]+$/',Rule::unique($record ? $record->getTable() : (new $definition['model'])->getTable(),'code')->ignore(optional($record)->id)], 'name_th' => ['required','string','max:255'], 'is_active' => ['required','boolean']];
+        $rules = ['code' => ['required','string','max:'.($definition['code_max'] ?? 100),'regex:/^[A-Z0-9_\-]+$/',Rule::unique($record ? $record->getTable() : (new $definition['model'])->getTable(),'code')->ignore(optional($record)->id)], 'name_th' => ['required','string','max:255'], 'is_active' => ['required','boolean']];
         foreach ($definition['fields'] as $field => $label) $rules[$field] = str_starts_with($field, 'require_') ? ['nullable','boolean'] : (in_array($field,['sla_days','sort_order'],true) ? ['nullable','integer','min:0'] : ['nullable','string','max:1000']);
         $data = $request->validate($rules, [
             'code.regex' => 'รูปแบบรหัสไม่ถูกต้อง ใช้ตัวอักษร A-Z ตัวเลข เครื่องหมาย - หรือ _ เช่น P-001',

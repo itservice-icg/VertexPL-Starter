@@ -6,6 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Models\NcrReport;
+use App\Models\Customer;
+use App\Models\NcrFormScope;
 
 class SaveNcrReportRequest extends FormRequest
 {
@@ -35,9 +37,21 @@ class SaveNcrReportRequest extends FormRequest
             return $item;
         })->values()->all();
 
+        if ($this->exists('company_customer_id') && $this->input('company_customer_id') !== 'legacy') {
+            $customerId = $this->filled('company_customer_id') ? $this->input('company_customer_id') : null;
+            $items = array_map(function (array $item) use ($customerId): array {
+                $item['customer_id'] = $customerId;
+
+                return $item;
+            }, $items);
+        }
+
+        $scopeInput = $this->input('legacy_form_scope_code');
         $rawScopeCodes = $this->has('legacy_form_scope_codes')
             ? (array) $this->input('legacy_form_scope_codes')
-            : explode(',', (string) $this->input('legacy_form_scope_code', ''));
+            : ($scopeInput === '__clear__'
+                ? []
+                : explode(',', (string) ($scopeInput ?: $this->input('legacy_form_scope_code_previous', ''))));
         $scopeCodes = array_values(array_unique(array_filter(
             $rawScopeCodes,
             static fn ($code) => $code !== null && $code !== ''
@@ -45,6 +59,17 @@ class SaveNcrReportRequest extends FormRequest
 
         $this->merge([
             'items' => $items,
+            'company_name' => ! $this->exists('company_customer_id')
+                ? $this->input('company_name')
+                : ($this->input('company_customer_id') === 'legacy'
+                    ? $this->input('company_name')
+                    : ($this->filled('company_customer_id')
+                        ? Customer::query()
+                            ->where('is_active', true)
+                            ->whereNull('deleted_at')
+                            ->whereKey($this->input('company_customer_id'))
+                            ->value('name_th')
+                        : null)),
             'legacy_form_scope_code' => $scopeCodes ? implode(',', $scopeCodes) : null,
         ]);
     }
@@ -53,11 +78,27 @@ class SaveNcrReportRequest extends FormRequest
     {
         return [
             'report_date'=>['required','date'],'found_date'=>['required','date','before_or_equal:today'],'found_time'=>['nullable','date_format:H:i'],
-            'legacy_form_scope_code'=>['nullable', Rule::in(['AI', 'UP'])],
+            'legacy_form_scope_code'=>['nullable', $this->formScopeRule()],
             'legacy_form_scope_codes'=>['nullable','array','max:1'],
-            'legacy_form_scope_codes.*'=>['required', Rule::in(['AI', 'UP']), 'distinct'],
+            'legacy_form_scope_codes.*'=>['required', $this->formScopeRule(), 'distinct'],
             'reporter_department_id'=>['nullable','exists:departments,id'],'related_department_id'=>['nullable','exists:departments,id'],'problem_type_id'=>['required','exists:problem_types,id'],'severity_level_id'=>['required','exists:severity_levels,id'],
             'company_name'=>['nullable','string','max:255'],
+            'company_customer_id'=>['nullable',function ($attribute, $value, $fail) {
+                if ($value === 'legacy') {
+                    $report = $this->route('ncr');
+                    if ($report instanceof NcrReport && $this->input('company_name') === $report->company_name) {
+                        return;
+                    }
+                } elseif (filter_var($value, FILTER_VALIDATE_INT) !== false && Customer::query()
+                    ->whereKey($value)
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at')
+                    ->exists()) {
+                    return;
+                }
+
+                $fail('กรุณาเลือกลูกค้าที่เปิดใช้งานจาก NCR Master Data');
+            }],
             'generic_name'=>['nullable','string','max:255'],'supplier_id'=>['nullable','integer','exists:suppliers,id'],'supplier_name'=>['nullable','string','max:255'],'production_date'=>['nullable','date'],'found_location'=>['nullable','string','max:255'],
             'machine_or_process'=>['nullable','string','max:255'],'reference_no'=>['nullable','string','max:100'],'problem_description'=>['required','string','max:10000'],
             'initial_disposition_type_id'=>['nullable','exists:disposition_types,id'],
@@ -74,6 +115,20 @@ class SaveNcrReportRequest extends FormRequest
             'items.*.defect_unit_name'=>['nullable',Rule::exists('units','code')],'items.*.total_unit_name'=>['nullable',Rule::exists('units','code')],
             'items.*.problem_description'=>['nullable','string','max:5000'],
         ];
+    }
+
+    private function formScopeRule(): \Closure
+    {
+        return function ($attribute, $value, $fail): void {
+            $scope = NcrFormScope::query()->where('code', $value)->where('is_active', true)->exists();
+            $report = $this->route('ncr');
+            $alreadySelected = $report instanceof NcrReport
+                && in_array($value, explode(',', (string) $report->legacy_form_scope_code), true);
+
+            if (! $scope && ! $alreadySelected) {
+                $fail('กรุณาเลือกขอบเขตแบบฟอร์มที่เปิดใช้งาน');
+            }
+        };
     }
 
     public function withValidator($validator): void

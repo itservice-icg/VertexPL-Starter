@@ -107,7 +107,7 @@
                                             {{ $user->is_active ? 'Active' : 'Inactive' }}
                                         </span>
                                     </td>
-                                    <td class="whitespace-nowrap px-5 py-4 text-sm text-slate-500">{{ $user->last_login_at ? $user->last_login_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i') : '-' }}</td>
+                                    <td class="whitespace-nowrap px-5 py-4 text-sm text-slate-500">{{ $user->last_login_at ? \App\Support\ThaiDateFormatter::formatDateTime($user->last_login_at, config('app.display_timezone')) : '-' }}</td>
                                     <td class="whitespace-nowrap px-5 py-4 text-right">
                                         <div class="inline-flex items-center gap-2">
                                             @can('users.update')

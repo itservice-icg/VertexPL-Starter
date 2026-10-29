@@ -71,6 +71,76 @@ class AuditLogTest extends TestCase
             ->assertDontSee('Signed in successfully');
     }
 
+    public function test_audit_log_filters_exact_action_codes_and_shows_change_values(): void
+    {
+        $user = User::factory()->create();
+        Permission::create(['name' => 'system.audit.view']);
+        $user->givePermissionTo('system.audit.view');
+
+        AuditLog::create([
+            'actor_id' => $user->id,
+            'module' => 'users',
+            'action' => 'users.profile.updated',
+            'description' => 'แก้ไขชื่อผู้ใช้ตัวอย่าง',
+            'old_values' => ['name' => 'ชื่อเดิม', 'roles' => ['qa', 'admin']],
+            'new_values' => ['name' => 'ชื่อใหม่', 'roles' => ['qa', 'auditor']],
+        ]);
+        AuditLog::create([
+            'actor_id' => $user->id,
+            'module' => 'users',
+            'action' => 'users.role.updated',
+            'description' => 'เปลี่ยนบทบาทผู้ใช้ตัวอย่าง',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('audit-logs.index', ['action' => 'users.profile.updated']))
+            ->assertOk()
+            ->assertSee('users.profile.updated')
+            ->assertSee('แก้ไขชื่อผู้ใช้ตัวอย่าง')
+            ->assertSee('ข้อมูลก่อน')
+            ->assertSee('ข้อมูลหลัง')
+            ->assertSee('ชื่อเดิม')
+            ->assertSee('ชื่อใหม่')
+            ->assertSee('roles / รายการที่ 1')
+            ->assertSee('auditor')
+            ->assertDontSee('เปลี่ยนบทบาทผู้ใช้ตัวอย่าง');
+    }
+
+    public function test_filtered_empty_state_offers_a_clear_filters_action(): void
+    {
+        $user = User::factory()->create();
+        Permission::create(['name' => 'system.audit.view']);
+        $user->givePermissionTo('system.audit.view');
+
+        $response = $this->actingAs($user)
+            ->get(route('audit-logs.index', ['action' => 'missing.action']))
+            ->assertOk()
+            ->assertSee('ไม่พบรายการที่ตรงกับตัวกรอง')
+            ->assertSee('ล้างตัวกรอง');
+
+        $this->assertSame(1, substr_count($response->getContent(), 'ล้างตัวกรอง'));
+    }
+
+    public function test_unfiltered_empty_state_does_not_offer_a_filter_reset(): void
+    {
+        $user = User::factory()->create();
+        Permission::create(['name' => 'system.audit.view']);
+        $user->givePermissionTo('system.audit.view');
+
+        $this->actingAs($user)
+            ->get(route('audit-logs.index', [
+                'search' => '',
+                'module' => '',
+                'action' => '',
+                'date_from' => '',
+                'date_to' => '',
+            ]))
+            ->assertOk()
+            ->assertSee('ยังไม่มีบันทึกการตรวจสอบ')
+            ->assertDontSee('ไม่พบรายการที่ตรงกับตัวกรอง')
+            ->assertDontSee('ล้างตัวกรอง');
+    }
+
     public function test_user_without_permission_cannot_view_audit_logs(): void
     {
         $this->actingAs(User::factory()->create())

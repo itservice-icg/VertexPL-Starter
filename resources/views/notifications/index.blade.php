@@ -23,7 +23,7 @@
                             @endif
                         </div>
                         <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            <time datetime="{{ $notification->created_at?->toIso8601String() }}">{{ optional($notification->created_at)->timezone(config('app.display_timezone'))->format('d/m/Y H:i') }}</time>
+                            <time datetime="{{ $notification->created_at?->toIso8601String() }}">{{ \App\Support\ThaiDateFormatter::formatDateTime($notification->created_at, config('app.display_timezone')) }}</time>
                             @if(!$notification->is_read)
                                 <form method="POST" action="{{ route('notifications.read', $notification) }}">@csrf<button class="min-h-[32px] rounded px-2 font-semibold text-indigo-600 hover:bg-indigo-100 focus:ring-2 focus:ring-indigo-500" aria-label="ทำเครื่องหมายว่าอ่านแล้ว: {{ $notification->report?->ncr_no ?: $notification->title }}">อ่านแล้ว</button></form>
                             @endif

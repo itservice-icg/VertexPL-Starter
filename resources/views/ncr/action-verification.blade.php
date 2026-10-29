@@ -85,7 +85,7 @@
                                 </td>
                                 <td class="whitespace-nowrap px-3 py-3" data-label="ผู้ตรวจ/เวลา">
                                     <div>{{ $verification->verifier->name }}</div>
-                                    <div class="text-xs text-slate-500">{{ $verification->verified_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i') }}</div>
+                                    <div class="text-xs text-slate-500">{{ \App\Support\ThaiDateFormatter::formatDateTime($verification->verified_at, config('app.display_timezone')) }}</div>
                                 </td>
                             </tr>
                         @endforeach

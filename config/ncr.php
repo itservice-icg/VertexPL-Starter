@@ -67,5 +67,6 @@ return [
         'customers' => ['model' => App\Models\Customer::class, 'title' => 'ลูกค้า', 'name_label' => 'ชื่อลูกค้า', 'fields' => []],
         'suppliers' => ['model' => App\Models\Supplier::class, 'title' => 'ผู้ผลิต/ผู้ขาย', 'name_label' => 'ชื่อผู้ผลิต/ผู้ขาย', 'fields' => []],
         'notification-rules' => ['model' => App\Models\NotificationRule::class, 'title' => 'กฎการแจ้งเตือน', 'fields' => ['event' => 'Event']],
+        'form-scopes' => ['model' => App\Models\NcrFormScope::class, 'title' => 'ขอบเขตแบบฟอร์ม', 'name_label' => 'ชื่อที่แสดง', 'fields' => [], 'code_max' => 10, 'immutable_code_when_in_use' => true],
     ],
 ];

@@ -9,6 +9,7 @@ use App\Http\Requests\SaveNcrQaFollowupRequest;
 use App\Models\Department;
 use App\Models\NcrAttachment;
 use App\Models\NcrReport;
+use App\Models\NcrFormScope;
 use App\Models\NcrCorrectiveAction;
 use App\Models\NcrActionAttachment;
 use App\Models\ProblemType;
@@ -48,20 +49,24 @@ class NcrReportController extends Controller
     }
     public function index(Request $request)
     {
-        $filters=$request->validate(['search'=>['nullable','string','max:100'],'status'=>['nullable','string','max:50'],'department_id'=>['nullable','exists:departments,id'],'date_from'=>['nullable','date'],'date_to'=>['nullable','date','after_or_equal:date_from']]);
-        $reports=$this->visibility->scope(NcrReport::query(), $request->user())->with(['reporter','relatedDepartment','problemType','items','latestDisposition.type'])
-            ->when($filters['search']??null,fn($q,$s)=>$q->where(fn($q)=>$q->where('ncr_no','like',"%{$s}%")->orWhereHas('items',fn($items)=>$items->where('product_name','like',"%{$s}%")->orWhere('product_code','like',"%{$s}%"))->orWhere('problem_description','like',"%{$s}%")))->when($filters['status']??null,fn($q,$v)=>$q->where('current_status',$v))->when($filters['department_id']??null,fn($q,$v)=>$q->where('related_department_id',$v))->when($filters['date_from']??null,fn($q,$v)=>$q->whereDate('report_date','>=',$v))->when($filters['date_to']??null,fn($q,$v)=>$q->whereDate('report_date','<=',$v))->latest('report_date')->latest('id')->paginate(15)->withQueryString();
+        $filters=$request->validate(['search'=>['nullable','string','max:100'],'status'=>['nullable','string','max:50'],'department_id'=>['nullable','exists:departments,id'],'date_from'=>['nullable','date'],'date_to'=>['nullable','date','after_or_equal:date_from'],'overdue'=>['nullable','boolean'],'dashboard_scope'=>['nullable','boolean']]);
+        $reportQuery = NcrReport::query();
+        $reports = ($filters['dashboard_scope'] ?? false)
+            ? $this->visibility->scopeForDashboard($reportQuery, $request->user())
+            : $this->visibility->scope($reportQuery, $request->user());
+        $reports = $reports->with(['reporter','relatedDepartment','problemType','items','latestDisposition.type'])
+            ->when($filters['search']??null,fn($q,$s)=>$q->where(fn($q)=>$q->where('ncr_no','like',"%{$s}%")->orWhereHas('items',fn($items)=>$items->where('product_name','like',"%{$s}%")->orWhere('product_code','like',"%{$s}%"))->orWhere('problem_description','like',"%{$s}%")))->when($filters['status']??null,fn($q,$v)=>$q->where('current_status',$v))->when($filters['department_id']??null,fn($q,$v)=>$q->where('related_department_id',$v))->when($filters['date_from']??null,fn($q,$v)=>$q->whereDate('report_date','>=',$v))->when($filters['date_to']??null,fn($q,$v)=>$q->whereDate('report_date','<=',$v))->when($filters['overdue']??false,fn($q)=>$q->whereNotIn('current_status',['DRAFT','CLOSED'])->whereDate('due_date','<',now()->toDateString()))->latest('report_date')->latest('id')->paginate(15)->withQueryString();
         $departments=Department::where('is_active',true)->orderBy('code')->get(); $statuses=['DRAFT','RETURNED_FOR_CORRECTION','INITIAL_REVIEW','PENDING_MANAGER_APPROVAL','RETURNED_FOR_DISPOSITION_REVISION','PENDING_DESTRUCTION_APPROVAL','DISPOSITION_APPROVED','ACTION_IN_PROGRESS','PENDING_ACTION_VERIFICATION','RETURNED_FOR_REWORK','QA_VERIFIED','CLOSED'];
         return view('ncr.index',compact('reports','filters','departments','statuses'));
     }
     public function create(){return view('ncr.form',$this->options()+['ncr'=>new NcrReport()]);}
-    public function store(SaveNcrReportRequest $request){$validated=$request->validated();$report=$this->workflow->createDraft($request->safe()->except(['version_no','attachments','items']),$request->user(),$validated['items'],$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','สร้าง NCR Draft เรียบร้อยแล้ว');}
+    public function store(SaveNcrReportRequest $request){$validated=$request->validated();$report=$this->workflow->createDraft($request->safe()->except(['version_no','attachments','items','company_customer_id']),$request->user(),$validated['items'],$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','สร้าง NCR Draft เรียบร้อยแล้ว');}
     public function show(Request $request, NcrReport $ncr)
     {
         abort_unless($this->visibility->canView($ncr, $request->user()), 404);
 
         $ncr->load([
-            'reporter', 'reporterDepartment', 'currentOwner', 'currentOwnerDepartment',
+            'reporter', 'reporterDepartment', 'currentOwner', 'currentOwnerDepartment', 'formScope',
             'currentCorrectiveActionCycle', 'relatedDepartment', 'problemType', 'severityLevel',
             'items', 'attachments', 'statusHistory.changedBy', 'initialReviews.reviewer',
             'dispositions.type', 'dispositions.responsibleDepartment', 'dispositions.approvals.approver',
@@ -95,6 +100,7 @@ class NcrReportController extends Controller
         abort_unless($ncr->current_status === 'CLOSED', 409, 'ดาวน์โหลด PDF ได้เฉพาะ NCR ที่ปิดแล้ว');
         $ncr->load([
             'reporter', 'reporterDepartment', 'relatedDepartment', 'problemType', 'severityLevel', 'items',
+            'formScope',
             'dispositions.type', 'dispositions.responsibleDepartment',
             'correctiveActions.responsibleDepartment', 'correctiveActions.owner',
             'qaFollowups.follower', 'closure.closer', 'formSignoffs.signer',
@@ -112,7 +118,8 @@ class NcrReportController extends Controller
             'margin_left' => 7,
         ]);
         $pdf->SetTitle($ncr->ncr_no);
-        $pdf->WriteHTML(view('ncr.pdf', compact('ncr'))->render());
+        $formScopes = $this->formScopeOptions($ncr, true);
+        $pdf->WriteHTML(view('ncr.pdf', compact('ncr', 'formScopes'))->render());
 
         $disposition = $request->boolean('preview') ? 'inline' : 'attachment';
 
@@ -132,7 +139,7 @@ class NcrReportController extends Controller
 
         return view('ncr.form', $this->options($ncr) + ['ncr' => $ncr, 'returnReason' => $returnReason]);
     }
-    public function update(SaveNcrReportRequest $request,NcrReport $ncr){$validated=$request->validated();$report=$this->workflow->updateDraft($ncr,$request->safe()->except(['version_no','attachments','items']),$validated['items'],$request->user(),(int)$request->input('version_no'),$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','บันทึก NCR เรียบร้อยแล้ว');}
+    public function update(SaveNcrReportRequest $request,NcrReport $ncr){$validated=$request->validated();$report=$this->workflow->updateDraft($ncr,$request->safe()->except(['version_no','attachments','items','company_customer_id']),$validated['items'],$request->user(),(int)$request->input('version_no'),$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','บันทึก NCR เรียบร้อยแล้ว');}
     public function submit(Request $request,NcrReport $ncr){$data=$request->validate(['version_no'=>['required','integer']]);$this->workflow->submit($ncr,$request->user(),(int)$data['version_no']);return redirect()->route('ncr.show',$ncr)->with('success','ส่ง NCR ตรวจสอบแล้ว');}
     public function initialReview(Request $request, NcrReport $ncr)
     {
@@ -171,11 +178,12 @@ class NcrReportController extends Controller
         $itemIds = $ncr ? $ncr->items()->get(['product_id', 'customer_id']) : collect();
         return [
             'departments' => Department::where('is_active', true)->orderBy('code')->get(),
+            'formScopes' => $this->formScopeOptions(null, false),
             'problemTypes' => ProblemType::where('is_active', true)->orderBy('code')->get(),
             'severityLevels' => SeverityLevel::where('is_active', true)->orderBy('sort_order')->get(),
             'dispositionTypes' => DispositionType::where('is_active', true)->orderBy('code')->get(),
             'units' => Unit::where('is_active', true)->orderBy('code')->get(),
-            'products' => $this->referenceOptions(Product::class, $itemIds->pluck('product_id')->filter()->all()),
+            'products' => Product::where('is_active', true)->orderBy('code')->get(),
             'customers' => $this->referenceOptions(Customer::class, $itemIds->pluck('customer_id')->filter()->all()),
             'suppliers' => $this->referenceOptions(Supplier::class, $ncr && $ncr->supplier_id ? [$ncr->supplier_id] : []),
         ];
@@ -187,6 +195,23 @@ class NcrReportController extends Controller
             ->where(function ($query) use ($currentIds) {
                 $query->where('is_active', true);
                 if ($currentIds) $query->orWhereIn('id', $currentIds);
+            })
+            ->orderBy('code')
+            ->get();
+    }
+
+    private function formScopeOptions(?NcrReport $ncr = null, bool $includeCurrentInactive = true)
+    {
+        $currentCodes = $ncr && $ncr->legacy_form_scope_code
+            ? explode(',', $ncr->legacy_form_scope_code)
+            : [];
+
+        $query = $includeCurrentInactive ? NcrFormScope::withTrashed() : NcrFormScope::query();
+
+        return $query
+            ->where(function ($query) use ($currentCodes, $includeCurrentInactive) {
+                $query->where('is_active', true);
+                if ($includeCurrentInactive && $currentCodes) $query->orWhereIn('code', $currentCodes);
             })
             ->orderBy('code')
             ->get();

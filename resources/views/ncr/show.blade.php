@@ -241,7 +241,7 @@
                     <span class="ncr-status-chip" title="{{ $ncr->current_status }}">{{ config('ncr.status_labels.'.$ncr->current_status, $ncr->current_status) }}</span>
                     <span>Version {{ $ncr->version_no }}</span>
                 </div>
-                <p class="mt-2 text-xs text-slate-500">{{ config('ncr.form.code') }} · Rev. {{ config('ncr.form.revision') }} · {{ \Carbon\Carbon::parse(config('ncr.form.revision_date'))->format('d/m/Y') }}</p>
+                <p class="mt-2 text-xs text-slate-500">{{ config('ncr.form.code') }} · Rev. {{ config('ncr.form.revision') }} · {{ \App\Support\ThaiDateFormatter::formatDate(config('ncr.form.revision_date')) }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 @can('ncr.update')
@@ -276,7 +276,7 @@
                 </div>
                 <div>
                     <p class="ncr-data-label">กำหนดเสร็จ NCR</p>
-                    <p class="ncr-data-value mt-1 {{ $ncr->is_overdue ? 'ncr-danger-text' : '' }}">{{ optional($ncr->due_date)->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</p>
+                    <p class="ncr-data-value mt-1 {{ $ncr->is_overdue ? 'ncr-danger-text' : '' }}">{{ \App\Support\ThaiDateFormatter::formatDate($ncr->due_date) ?: 'ยังไม่กำหนด' }}</p>
                 </div>
                 <div>
                     <p class="ncr-data-label">ขั้นตอนถัดไป</p>
@@ -304,7 +304,7 @@
                     @if($ncr->current_status !== 'CLOSED')
                     <strong>{{ config('ncr.status_labels.'.$trackerStatus, $trackerStatus) }}</strong>
                     @elseif($ncr->closure?->closed_at)
-                    <small>ปิดเมื่อ {{ $ncr->closure->closed_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i') }}</small>
+                    <small>ปิดเมื่อ {{ \App\Support\ThaiDateFormatter::formatDateTime($ncr->closure->closed_at, config('app.display_timezone')) }}</small>
                     @endif
                 </span>
             </div>
@@ -336,7 +336,7 @@
                 </div>
                 <dl class="ncr-report-summary" aria-label="ข้อมูลสำคัญของรายงาน">
                     <div><dt>เลขที่ NCR</dt><dd>{{ $ncr->ncr_no }}</dd></div>
-                    <div><dt>วันที่ออก</dt><dd>{{ $ncr->report_date->format('d/m/Y') }}</dd></div>
+                    <div><dt>วันที่ออก</dt><dd>{{ \App\Support\ThaiDateFormatter::formatDate($ncr->report_date) }}</dd></div>
                     <div><dt>ผู้แจ้ง</dt><dd><span class="block">{{ $ncr->reporter->name }}</span><span class="mt-1 block text-xs font-normal text-slate-500">หน่วยงานผู้รายงาน: {{ optional($ncr->reporterDepartment)->name_th ?: '-' }}</span></dd></div>
                     <div><dt>หน่วยงานที่พบปัญหา</dt><dd>{{ $ncr->relatedDepartment?->name_th ?: '-' }}</dd></div>
                     <div><dt>ประเภท</dt><dd>{{ optional($ncr->problemType)->name_th ?: '-' }}</dd></div>
@@ -393,7 +393,7 @@
                                                     <div class="ncr-item-dialog__summary"><strong>สรุปเหตุการณ์ NCR (ภาพรวม)</strong><p>{{ $ncr->problem_description }}</p></div>
                                                     @endif
                                                     <dl class="ncr-item-dialog__grid">
-                                                        @foreach(['AI / UP'=>$ncr->legacy_form_scope_code ?: 'ยังไม่ได้เลือก','เลขที่ NCR'=>$ncr->ncr_no,'วันที่ออก'=>$ncr->report_date?->format('d/m/Y'),'วันที่/เวลาที่พบ'=>$ncr->found_date?->format('d/m/Y').($ncr->found_time?' '.$ncr->found_time:''),'ผู้พบ / ผู้แจ้ง'=>optional($ncr->reporter)->name,'หน่วยงานผู้รายงาน'=>optional($ncr->reporterDepartment)->name_th,'หน่วยงานที่พบปัญหา'=>optional($ncr->relatedDepartment)->name_th,'ประเภทที่พบ'=>optional($ncr->problemType)->name_th,'ระดับความรุนแรง'=>optional($ncr->severityLevel)->name_th,'บริษัท'=>$ncr->company_name,'ชื่อสามัญ'=>$ncr->generic_name,'เลขที่อ้างอิง'=>$ncr->reference_no,'ผู้ผลิต/ผู้ขาย'=>$ncr->supplier_name,'พื้นที่ที่พบ'=>$ncr->found_location,'เครื่องจักร/กระบวนการ'=>$ncr->machine_or_process] as $label => $value)
+                                                        @foreach(['ขอบเขตแบบฟอร์ม'=>optional($ncr->formScope)->name_th ?: ($ncr->legacy_form_scope_code ?: 'ยังไม่ได้เลือก'),'เลขที่ NCR'=>$ncr->ncr_no,'วันที่ออก'=>\App\Support\ThaiDateFormatter::formatDate($ncr->report_date),'วันที่/เวลาที่พบ'=>\App\Support\ThaiDateFormatter::formatDate($ncr->found_date).($ncr->found_time?' '.$ncr->found_time:''),'ผู้พบ / ผู้แจ้ง'=>optional($ncr->reporter)->name,'หน่วยงานผู้รายงาน'=>optional($ncr->reporterDepartment)->name_th,'หน่วยงานที่พบปัญหา'=>optional($ncr->relatedDepartment)->name_th,'ประเภทที่พบ'=>optional($ncr->problemType)->name_th,'ระดับความรุนแรง'=>optional($ncr->severityLevel)->name_th,'บริษัท'=>$ncr->company_name,'ชื่อสามัญ'=>$ncr->generic_name,'เลขที่อ้างอิง'=>$ncr->reference_no,'ผู้ผลิต/ผู้ขาย'=>$ncr->supplier_name,'พื้นที่ที่พบ'=>$ncr->found_location,'เครื่องจักร/กระบวนการ'=>$ncr->machine_or_process] as $label => $value)
                                                             @if(filled($value))<div><dt>{{ $label }}</dt><dd>{{ $value }}</dd></div>@endif
                                                         @endforeach
                                                     </dl>
@@ -440,7 +440,7 @@
                             <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                                 <div><dt class="text-slate-500">ผลการตรวจสอบ</dt><dd class="mt-1 font-semibold">{{ $reviewResultLabels[$latestInitialReview->review_result] ?? $latestInitialReview->review_result }}</dd></div>
                                 <div><dt class="text-slate-500">ผู้ตรวจสอบ</dt><dd class="mt-1 font-semibold">{{ $latestInitialReview->reviewer?->name ?: '-' }}</dd></div>
-                                <div><dt class="text-slate-500">วันที่ตรวจสอบ</dt><dd class="mt-1 font-semibold">{{ optional($latestInitialReview->reviewed_at)->timezone(config('app.display_timezone'))->format('d/m/Y H:i') ?: '-' }}</dd></div>
+                    <div><dt class="text-slate-500">วันที่ตรวจสอบ</dt><dd class="mt-1 font-semibold">{{ \App\Support\ThaiDateFormatter::formatDateTime($latestInitialReview->reviewed_at, config('app.display_timezone')) ?: '-' }}</dd></div>
                                 <div class="sm:col-span-2"><dt class="text-slate-500">หมายเหตุ</dt><dd class="mt-1 whitespace-pre-line">{{ $latestInitialReview->completeness_note ?: '-' }}</dd></div>
                             </dl>
                         </section>
@@ -452,7 +452,7 @@
                                 <div><dt class="text-slate-500">ข้อเสนอแนะ</dt><dd class="mt-1 font-semibold">{{ $fmDispositionLabels[$currentDisposition->type->code] ?? $currentDisposition->type->name_th }}</dd></div>
                                 <div><dt class="text-slate-500">สถานะ</dt><dd class="mt-1 font-semibold">{{ $dispositionStatusLabels[$currentDisposition->status] ?? $currentDisposition->status }}</dd></div>
                                 <div><dt class="text-slate-500">หน่วยงานรับผิดชอบ</dt><dd class="mt-1 font-semibold">{{ $currentDisposition->responsibleDepartment->code }} - {{ $currentDisposition->responsibleDepartment->name_th }}</dd></div>
-                                <div><dt class="text-slate-500">กำหนดเสร็จตามข้อเสนอ Disposition</dt><dd class="mt-1 font-semibold">{{ optional($currentDisposition->proposed_due_date)->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</dd></div>
+                                <div><dt class="text-slate-500">กำหนดเสร็จตามข้อเสนอ Disposition</dt><dd class="mt-1 font-semibold">{{ \App\Support\ThaiDateFormatter::formatDate($currentDisposition->proposed_due_date) ?: 'ยังไม่กำหนด' }}</dd></div>
                                 <div class="sm:col-span-2"><dt class="text-slate-500">รายละเอียด</dt><dd class="mt-1 whitespace-pre-line">{{ $currentDisposition->disposition_detail }}</dd></div>
                             </dl>
                         </section>
@@ -688,7 +688,7 @@
                         <div>
                             <dt class="text-xs font-semibold text-slate-500">หน่วยงานรับผิดชอบ</dt>
                             <dd class="mt-1">{{ $disposition->responsibleDepartment?->name_th ?: '-' }}</dd>
-                            <dd class="mt-2 text-sm text-slate-500">กำหนดเสร็จ: {{ optional($disposition->proposed_due_date)->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</dd>
+                            <dd class="mt-2 text-sm text-slate-500">กำหนดเสร็จ: {{ \App\Support\ThaiDateFormatter::formatDate($disposition->proposed_due_date) ?: 'ยังไม่กำหนด' }}</dd>
                         </div>
                     </dl>
                     <section class="border-t border-slate-200 pt-3" aria-label="ผลการพิจารณารอบที่ {{ $disposition->revision_no }}">
@@ -700,7 +700,7 @@
                                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                                     <span class="font-semibold {{ $approval->decision === 'REJECTED' ? 'text-red-600' : 'text-emerald-700' }}">{{ config('ncr.approval_decision_labels.'.$approval->decision, $approval->decision) }}</span>
                                     <span>โดย {{ $approval->approver?->name ?: '-' }}</span>
-                                    <time class="text-slate-500" datetime="{{ $approval->decided_at?->toIso8601String() }}">{{ $approval->decided_at?->timezone(config('app.display_timezone'))->format('d/m/Y H:i') ?: '-' }}</time>
+                                    <time class="text-slate-500" datetime="{{ $approval->decided_at?->toIso8601String() }}">{{ \App\Support\ThaiDateFormatter::formatDateTime($approval->decided_at, config('app.display_timezone')) ?: '-' }}</time>
                                 </div>
                                 @if($approval->decision_note)<p class="mt-2 whitespace-pre-line text-slate-600">ความเห็น: {{ $approval->decision_note }}</p>@endif
                             </li>
@@ -733,7 +733,7 @@
                             <td class="px-3 py-2">Part {{ $signoff->form_part }}</td>
                             <td class="px-3 py-2">{{ $signoff->signoff_stage }}</td>
                             <td class="px-3 py-2">{{ $signoff->signer?->name ?: $signoff->signer_name_snapshot ?: '-' }}</td>
-                            <td class="px-3 py-2">{{ $signoff->signoff_result ?: 'RECORDED' }} · {{ $signoff->signed_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i') }}@if($signoff->signoff_note)<br>{{ $signoff->signoff_note }}@endif</td>
+                            <td class="px-3 py-2">{{ $signoff->signoff_result ?: 'RECORDED' }} · {{ \App\Support\ThaiDateFormatter::formatDateTime($signoff->signed_at, config('app.display_timezone')) }}@if($signoff->signoff_note)<br>{{ $signoff->signoff_note }}@endif</td>
                         </tr>@endforeach</tbody>
                 </table>
             </div>
@@ -748,7 +748,7 @@
                         @if($history->action_code === 'SUBMIT_DISPOSITION')
                             <div class="text-xs font-medium text-amber-700">รอการพิจารณาโดย: ผู้จัดการโรงงาน / รองกรรมการผู้จัดการ</div>
                         @endif
-                        <div class="text-xs text-slate-500">{{ $history->action_code }} · {{ $history->changed_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i') }}</div>@if($history->action_note)<p class="mt-1 text-sm">{{ $history->action_note }}</p>@endif
+                        <div class="text-xs text-slate-500">{{ $history->action_code }} · {{ \App\Support\ThaiDateFormatter::formatDateTime($history->changed_at, config('app.display_timezone')) }}</div>@if($history->action_note)<p class="mt-1 text-sm">{{ $history->action_note }}</p>@endif
                     </li>@endforeach</ol>
             </div>
         </details>

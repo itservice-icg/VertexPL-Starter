@@ -57,7 +57,7 @@
 
     $closedAt = optional($ncr->closure)->closed_at;
     $closedDate = $closedAt
-        ? $closedAt->timezone(config('app.display_timezone'))->format('d/m/Y')
+        ? \App\Support\ThaiDateFormatter::formatDate($closedAt, config('app.display_timezone'))
         : '';
 
     $actions = $ncr->correctiveActions->take(6)->values();
@@ -112,8 +112,10 @@
     .header-left {
         width: 15.5%;
         text-align: center;
-        white-space: nowrap;
+        white-space: normal;
         font-weight: bold;
+        font-size: 6pt;
+        line-height: 1.1;
     }
 
     .header-title {
@@ -285,9 +287,9 @@
     <table class="header">
         <tr style="height: 8.2mm;">
             <td class="header-left" rowspan="3">
-                {!! $box(in_array('AI', $scopeCodes, true)) !!} AI
-                &nbsp;&nbsp;
-                {!! $box(in_array('UP', $scopeCodes, true)) !!} UP
+                @foreach ($formScopes as $formScope)
+                    {!! $box(in_array($formScope->code, $scopeCodes, true)) !!} {{ $formScope->name_th }}@if (! $loop->last)&nbsp;&nbsp;@endif
+                @endforeach
             </td>
             <td class="header-title" rowspan="3">
                 รายงานผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด /
@@ -298,11 +300,11 @@
         </tr>
         <tr style="height: 8.2mm;">
             <td class="header-label">วันที่ออก :</td>
-            <td class="header-value">{{ optional($ncr->report_date)->format('d/m/Y') }}</td>
+            <td class="header-value">{{ \App\Support\ThaiDateFormatter::formatDate($ncr->report_date) }}</td>
         </tr>
         <tr style="height: 8.2mm;">
             <td class="header-label">กำหนดเสร็จ NCR :</td>
-            <td class="header-value">{{ optional($ncr->due_date)->format('d/m/Y') ?: 'ยังไม่กำหนด' }}</td>
+            <td class="header-value">{{ \App\Support\ThaiDateFormatter::formatDate($ncr->due_date) ?: 'ยังไม่กำหนด' }}</td>
         </tr>
     </table>
 
@@ -450,7 +452,7 @@
                         <td colspan="23" class="lined-area detail-area">
                             <table class="line-table">
                                 <tr style="height:5.3mm"><td>{{ optional($disposition)->disposition_detail }}</td></tr>
-                                <tr style="height:5.2mm"><td>กำหนดเสร็จตามข้อเสนอ Disposition: {{ optional($disposition)->proposed_due_date ? $disposition->proposed_due_date->format('d/m/Y') : 'ยังไม่กำหนด' }}</td></tr>
+                                <tr style="height:5.2mm"><td>กำหนดเสร็จตามข้อเสนอ Disposition: {{ \App\Support\ThaiDateFormatter::formatDate(optional($disposition)->proposed_due_date) ?: 'ยังไม่กำหนด' }}</td></tr>
                                 <tr style="height:5.2mm"><td>&nbsp;</td></tr>
                             </table>
                         </td>
@@ -565,7 +567,7 @@
                                             {{ $action ? optional($action->responsibleDepartment)->code : '' }}
                                         </td>
                                         <td class="center nowrap">
-                                            {{ $action && $action->due_date ? $action->due_date->format('d/m/Y') : 'ยังไม่กำหนด' }}
+                                            {{ \App\Support\ThaiDateFormatter::formatDate($action ? $action->due_date : null) ?: 'ยังไม่กำหนด' }}
                                         </td>
                                         <td class="center">
                                             {{ $action ? optional($action->owner)->name : '' }}
@@ -638,7 +640,7 @@
                                         ไม่ปิด NCR ติดตามครั้งที่ 2
                                     </td>
                                     <td style="width:15%; border:0;">
-                                        วันที่ {{ optional($followup)->next_followup_date ? $followup->next_followup_date->format('d/m/Y') : 'ยังไม่กำหนด' }}
+                                        วันที่ {{ \App\Support\ThaiDateFormatter::formatDate(optional($followup)->next_followup_date) ?: 'ยังไม่กำหนด' }}
                                     </td>
                                     <td style="width:48%; border:0;" class="right">
                                         ลงชื่อ................................

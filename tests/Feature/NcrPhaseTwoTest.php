@@ -25,7 +25,7 @@ class NcrPhaseTwoTest extends TestCase
     public function test_reporter_can_create_draft_with_number_item_history_and_attachment():void
     {
         Storage::fake('local');$user=$this->user(['ncr.create']);
-        $this->actingAs($user)->get(route('ncr.create'))->assertOk()->assertSee('สร้าง Non-Conformance Report');
+        $this->actingAs($user)->get(route('ncr.create'))->assertOk()->assertSee('สร้างรายงาน NCR ใหม่');
         $this->actingAs($user)->post(route('ncr.store'),$this->payload()+['attachments'=>[UploadedFile::fake()->create('proof.pdf',50,'application/pdf')]])->assertRedirect();
         $report=NcrReport::firstOrFail();$this->assertMatchesRegularExpression('/^NCR-\d{4}-00001$/',$report->ncr_no);$this->assertSame('DRAFT',$report->current_status);
         $this->assertDatabaseHas('ncr_items',['ncr_report_id'=>$report->id,'line_no'=>1]);$this->assertDatabaseHas('ncr_status_history',['ncr_report_id'=>$report->id,'action_code'=>'CREATE_DRAFT']);
@@ -110,7 +110,7 @@ class NcrPhaseTwoTest extends TestCase
     public function test_list_supports_search_status_and_department_filters():void
     {
         $user=$this->user(['ncr.create','ncr.view']);$target=Product::create(['code'=>'TARGET','name_th'=>'Target Product','is_active'=>true]);$this->actingAs($user)->post(route('ncr.store'),$this->payload(['product_id'=>$target->id,'product_name'=>'Target Product','product_code'=>'TARGET','related_department_id'=>$this->department->id]));
-        $this->actingAs($user)->get(route('ncr.index',['search'=>'Target','status'=>'DRAFT','department_id'=>$this->department->id]))->assertOk()->assertSee('Target Product')->assertSee($user->name)->assertSee($user->email);
+        $this->actingAs($user)->get(route('ncr.index',['search'=>'Target','status'=>'DRAFT','department_id'=>$this->department->id]))->assertOk()->assertSee('Target Product')->assertSee($user->name)->assertSee($user->email)->assertSee('20/08/2569');
     }
     public function test_list_has_pdf_download_and_visible_user_can_download_it():void
     {

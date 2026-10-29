@@ -12,7 +12,11 @@
 
     <div class="ncr-page ncr-register w-full space-y-4 p-4 sm:p-6">
 
+        @php($isOverdueFilter = (bool) ($filters['overdue'] ?? false))
+        @php($isDashboardScope = (bool) ($filters['dashboard_scope'] ?? false))
         <form method="GET" class="ncr-register-filters" aria-label="ตัวกรอง NCR">
+            @if($isOverdueFilter)<input type="hidden" name="overdue" value="1">@endif
+            @if($isDashboardScope)<input type="hidden" name="dashboard_scope" value="1">@endif
             <div class="sm:col-span-2 xl:col-span-1"><label for="ncr-search" class="ncr-data-label">ค้นหา</label><input type="search" id="ncr-search" name="search" value="{{ $filters['search']??'' }}" placeholder="เลข NCR / สินค้า / ปัญหา" class="mt-1 block min-h-[42px] w-full rounded-lg border border-slate-300 px-3 py-2"></div>
             <div><label for="ncr-status" class="ncr-data-label">สถานะ</label><select id="ncr-status" name="status" class="mt-1 block min-h-[42px] w-full rounded-lg border-slate-300"><option value="">ทุกสถานะ</option>@foreach($statuses as $status)<option value="{{ $status }}" {{ ($filters['status']??'')===$status?'selected':'' }}>{{ config('ncr.status_labels.'.$status, $status) }}</option>@endforeach</select></div>
             <div><label for="ncr-department" class="ncr-data-label">หน่วยงานที่พบปัญหา</label><select id="ncr-department" name="department_id" class="mt-1 block min-h-[42px] w-full rounded-lg border-slate-300"><option value="">ทุกหน่วยงาน</option>@foreach($departments as $d)<option value="{{ $d->id }}" {{ (string)($filters['department_id']??'')===(string)$d->id?'selected':'' }}>{{ $d->name_th }}</option>@endforeach</select></div>
@@ -21,7 +25,17 @@
         </form>
 
         <section class="ncr-table-shell" aria-labelledby="ncr-list-heading">
-            <div class="ncr-table-shell__header"><h2 id="ncr-list-heading" class="text-sm font-semibold text-slate-700">รายงานทั้งหมด</h2><span class="ncr-status-chip">{{ $reports->total() }} รายการ</span></div>
+            <div class="ncr-table-shell__header">
+                <div>
+                    <h2 id="ncr-list-heading" class="text-sm font-semibold text-slate-700">{{ $isOverdueFilter ? 'รายการ NCR เกินกำหนด' : 'รายงานทั้งหมด' }}</h2>
+                    @if($isOverdueFilter)<p class="mt-1 text-xs text-slate-500">แสดง NCR ที่เลยกำหนดและยังไม่ปิด</p>@endif
+                    @if($isDashboardScope)<p class="mt-1 text-xs text-slate-500">แสดงเฉพาะรายการในขอบเขตเดียวกับภาพรวม NCR</p>@endif
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    @if($isOverdueFilter || $isDashboardScope)<a href="{{ route('ncr.index') }}" class="ncr-action-link ncr-action-link--secondary">แสดงรายการ NCR ทั้งหมด</a>@endif
+                    <span class="ncr-status-chip">{{ $reports->total() }} รายการ</span>
+                </div>
+            </div>
             <div class="ncr-table-shell__body"><table class="ncr-mobile-cards divide-y text-sm" style="width:100%; table-layout:fixed">
                 <colgroup><col style="width:9%"><col style="width:12%"><col style="width:9%"><col style="width:12%"><col style="width:26%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>
                 <thead><tr><th class="px-2 py-3 text-left">เลข NCR</th><th class="px-4 py-3 text-left">ข้อเสนอแนะ</th><th class="px-2 py-3 text-left">วันที่</th><th class="px-4 py-3 text-left">ผู้สร้าง</th><th class="px-4 py-3 text-left">สินค้า / ปัญหา</th><th class="px-4 py-3 text-left">หน่วยงานที่พบปัญหา</th><th class="px-4 py-3 text-left">สถานะ</th><th class="px-1 py-3 text-left">เอกสาร</th></tr></thead>
@@ -43,7 +57,7 @@
                                 <span class="text-slate-500">ยังไม่มีข้อเสนอแนะ</span>
                             @endif
                         </td>
-                        <td class="px-0 py-4" data-label="วันที่">{{ $r->report_date->format('d') }}/<wbr>{{ $r->report_date->format('m') }}/<wbr>{{ $r->report_date->format('Y') }}</td>
+                        <td class="px-0 py-4" data-label="วันที่">{{ \App\Support\ThaiDateFormatter::formatDate($r->report_date) }}</td>
                         <td class="px-4 py-4" data-label="ผู้สร้าง"><div class="font-medium text-slate-800">{{ $r->reporter->name }}</div></td>
                         <td class="px-4 py-4" data-label="สินค้า / ปัญหา"><div>{{ $firstItem?->product_name ?: '-' }}{{ $r->items->count() > 1 ? ' (+'.($r->items->count() - 1).')' : '' }}</div><div class="max-w-md truncate text-slate-500">{{ $r->problem_description }}</div></td>
                         <td class="px-4 py-4" data-label="หน่วยงานที่พบปัญหา">{{ optional($r->relatedDepartment)->name_th?:'-' }}</td>

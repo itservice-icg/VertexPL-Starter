@@ -18,6 +18,7 @@ class NcrReport extends Model
     public function problemType() { return $this->belongsTo(ProblemType::class); }
     public function severityLevel() { return $this->belongsTo(SeverityLevel::class); }
     public function supplierReference() { return $this->belongsTo(Supplier::class, 'supplier_id'); }
+    public function formScope() { return $this->belongsTo(NcrFormScope::class, 'legacy_form_scope_code', 'code')->withTrashed(); }
     public function items() { return $this->hasMany(NcrItem::class); }
     public function attachments() { return $this->hasMany(NcrAttachment::class); }
     public function comments() { return $this->hasMany(NcrComment::class); }
