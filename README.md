@@ -2,7 +2,20 @@
 
 ระบบบริหาร Non-Conformance Report (NCR) พัฒนาด้วย Laravel 8 สำหรับรายงาน ตรวจสอบ อนุมัติ ติดตาม Corrective Action และปิด NCR ตามลำดับงานขององค์กร
 
-## Stack project
+## สารบัญ
+
+- [ภาพรวม](#vertexpl--ncr-management)
+- [เทคโนโลยี](#technology-stack)
+- [เริ่มต้นใช้งาน](#getting-started)
+  - [ติดตั้งและรันระบบ](#development-setup)
+  - [ฐานข้อมูลและข้อมูลทดสอบ](#database-and-test-data)
+- [ขั้นตอนใช้งาน Git](#git-workflow)
+- [NCR mock users](#ncr-mock-users)
+- [NCR permissions และลำดับงาน](#ncr-permissions)
+- [เอกสาร NCR](#ncr-documentation)
+- [License](#license)
+
+## Technology stack
 
 - **Backend:** PHP (`^7.3|^8.0`), Laravel 8, Eloquent ORM, Blade
 - **Frontend:** Tailwind CSS 3, Alpine.js 3, Laravel Mix 6, Webpack 5, PostCSS
@@ -12,7 +25,9 @@
 - **Testing and quality:** PHPUnit 9, Node.js built-in test runner (`npm run test:theme`), Larastan/PHPStan (`composer analyse`)
 - **Asset commands:** `npm run dev` สำหรับ build ระหว่างพัฒนา และ `npm run prod` สำหรับ production build
 
-## Development setup
+## Getting started
+
+### Development setup
 
 ```bash
 composer install
@@ -22,25 +37,80 @@ php artisan migrate
 php artisan serve
 ```
 
+### Database and test data
+
+#### Seed ข้อมูลพื้นฐาน
+
 การสร้างข้อมูลพื้นฐานทั้งหมด (roles, permissions, NCR master data และ settings):
 
 ```bash
 php artisan db:seed --class=DatabaseSeeder
 ```
 
-เมื่อต้องการรีเซ็ตฐานข้อมูลสำหรับ Development เท่านั้น (ลบข้อมูลในทุก table แล้วสร้าง schema และข้อมูลพื้นฐานใหม่):
+#### Reset ฐานข้อมูล Development
+
+คำสั่งนี้ลบข้อมูลทุก table แล้วสร้าง schema และข้อมูลพื้นฐานใหม่ ใช้เฉพาะฐานข้อมูล Development ที่ยอมรับการลบข้อมูลได้:
 
 ```bash
 php artisan migrate:fresh --seed
 ```
 
-คำสั่งนี้เรียก `DatabaseSeeder` แต่ไม่เรียก `NcrMockupSeeder` อัตโนมัติ และห้ามใช้กับฐานข้อมูลที่ต้องเก็บข้อมูลไว้
+คำสั่งนี้เรียก `DatabaseSeeder` แต่ไม่เรียก `NcrMockupSeeder` อัตโนมัติ ห้ามใช้กับฐานข้อมูลที่ต้องเก็บข้อมูลไว้
 
-การสร้าง Mock users ต้องกำหนด `VERTEXPL_MOCK_PASSWORD` ใน environment ก่อน แล้วจึงรัน:
+#### สร้าง Mock users
+
+กำหนด `VERTEXPL_MOCK_PASSWORD` ใน environment ก่อน แล้วจึงรัน:
 
 ```bash
 php artisan db:seed --class=NcrMockupSeeder
 ```
+
+## Git workflow
+
+ใช้คำสั่งต่อไปนี้เพื่อดูสถานะ ตรวจ diff, stage, commit และ push งานขึ้น remote โดยเปลี่ยนข้อความ commit ให้สื่อถึงสิ่งที่แก้ไขจริง
+
+1. ตรวจ branch และไฟล์ที่เปลี่ยน:
+
+   ```bash
+   git status
+   git diff
+   ```
+
+2. Stage เฉพาะไฟล์ที่ต้องการบันทึก (ระบุ path; `git add` เปล่า ๆ จะไม่เพิ่มไฟล์):
+
+   ```bash
+   git add resources/views/ncr/form.blade.php
+   ```
+
+   ตรวจรายการที่ staged ก่อน commit:
+
+   ```bash
+   git diff --cached
+   git status
+   ```
+
+3. สร้าง commit พร้อมข้อความอธิบาย:
+
+   ```bash
+   git commit -m "Update NCR form helper text"
+   ```
+
+   หาก Git เปิด editor ให้พิมพ์ข้อความที่บรรทัดแรก แล้วบันทึกและปิด editor (เช่น Vim ใช้ `i`, พิมพ์ข้อความ, `Esc`, `:wq`, `Enter`).
+
+4. ตรวจสอบว่า commit ถูกสร้างและ working tree สะอาด:
+
+   ```bash
+   git log -1 --oneline
+   git status
+   ```
+
+5. เมื่อต้องการส่ง commit ไปยัง remote ของ branch ปัจจุบัน:
+
+   ```bash
+   git push
+   ```
+
+`git add` บันทึกไฟล์เข้า staging area เท่านั้น; `git commit` สร้าง commit ในเครื่อง; `git push` ส่ง commit ไปยัง remote. คำเตือนว่า `LF will be replaced by CRLF` เป็นการแจ้งเรื่อง line ending ตามการตั้งค่า Git บนเครื่อง ไม่ได้หมายความว่า `git add` ล้มเหลว
 
 ## NCR mock users
 
@@ -79,7 +149,9 @@ php artisan db:seed --class=NcrReporterUsersSeeder
 | จัดซื้อ | `prc01`–`prc05`@mock.vertexpl.local |
 | คลังสินค้า | `wh01`–`wh05`@mock.vertexpl.local |
 
-## NCR permissions
+## NCR permissions และลำดับงาน
+
+### Permission list
 
 ระบบมี NCR permissions 15 รายการ เรียงตามลำดับการใช้งานดังนี้:
 
@@ -101,7 +173,7 @@ php artisan db:seed --class=NcrReporterUsersSeeder
 | 14 | `ncr.report` | ดูรายงาน สรุป และข้อมูลวิเคราะห์ NCR | ผู้บริหาร / QA |
 | 15 | `ncr.master.manage` | จัดการข้อมูลหลักของ NCR | ผู้ดูแลระบบ |
 
-## NCR permission flow
+### Permission flow
 
 ลำดับงานหลัก:
 

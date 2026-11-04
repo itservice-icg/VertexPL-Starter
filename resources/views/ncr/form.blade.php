@@ -200,16 +200,16 @@
 
 
 
-                {{-- ประเภท / ความรุนแรง / หน่วยงาน --}}
+                {{-- ประเภท / หน่วยงาน --}}
                 <div id="ncr-classification" class="ncr-form-section ncr-form-section--compact scroll-mt-28 p-3 sm:p-4">
                     <div class="ncr-form-section__header ncr-compact-section-header -mx-3 -mt-3 mb-3 sm:-mx-4 sm:-mt-4">
                         <h2 class="ncr-section-title mt-1">ประเภทและหน่วยงาน</h2>
-                        <p class="ncr-section-description mt-1">ระบุประเภทเหตุการณ์ ระดับความรุนแรง และหน่วยงานที่พบปัญหา</p>
+                        <p class="ncr-section-description mt-1">ระบุประเภทเหตุการณ์และหน่วยงานที่พบปัญหา</p>
                     </div>
 
                     <div class="ncr-compact-grid grid grid-cols-1 gap-3 sm:grid-cols-2">
 
-                        <div class="sm:col-span-2">
+                        <div>
                             <x-label
                                 value="ประเภทที่พบ"
                                 class="text-sm font-semibold text-slate-700" />
@@ -224,27 +224,6 @@
                                 <option
                                     value="{{ $x->id }}"
                                     {{ (string) $v('problem_type_id') === (string) $x->id ? 'selected' : '' }}>
-                                    {{ $x->name_th }}
-                                </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <x-label
-                                value="ความรุนแรง"
-                                class="text-sm font-semibold text-slate-700" />
-
-                            <select
-                                name="severity_level_id"
-                                class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500"
-                                required>
-                                <option value="">เลือกระดับความรุนแรง</option>
-
-                                @foreach($severityLevels as $x)
-                                <option
-                                    value="{{ $x->id }}"
-                                    {{ (string) $v('severity_level_id') === (string) $x->id ? 'selected' : '' }}>
                                     {{ $x->name_th }}
                                 </option>
                                 @endforeach
@@ -272,6 +251,9 @@
                         </div>
 
                     </div>
+                    @if($editing && $ncr->severity_level_id)
+                        <input type="hidden" name="severity_level_id" value="{{ $ncr->severity_level_id }}">
+                    @endif
                 </div>
 
 
@@ -283,31 +265,127 @@
                         <p class="ncr-section-description mt-1">ข้อมูลลูกค้า สินค้า ผู้ผลิต พื้นที่ และกระบวนการที่เกี่ยวข้อง</p>
                     </div>
 
-                    <div class="ncr-compact-grid ncr-reference-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div
+                        x-data='{
+                            products: {!! json_encode($products->map(fn($product) => ["code" => $product->code, "name" => $product->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
+                            customers: {!! json_encode($customers->map(fn($customer) => ["id" => $customer->id, "code" => $customer->code, "name" => $customer->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
+                            reference: {
+                                productCode: {!! json_encode($v("reference_product_code"), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
+                                productName: {!! json_encode($v("reference_product_name"), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
+                                customerName: {!! json_encode($v("reference_customer_name") ?: $v("company_name"), JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+                            },
+                            customerId: {!! json_encode(old('company_customer_id', optional($selectedCompanyCustomer)->id)) !!},
+                            referenceOpen: null,
+                            referenceActiveIndex: -1,
+                            referenceOptions(key) {
+                                const query = String(this.reference[key] || "").trim().toLocaleLowerCase();
+                                const options = key === "customerName"
+                                    ? this.customers.map((item) => ({ value: item.name, detail: item.code, id: item.id }))
+                                    : this.products.map((item) => ({
+                                        value: key === "productCode" ? item.code : item.name,
+                                        detail: key === "productCode" ? item.name : item.code
+                                    }));
+                                return options.filter((item) => !query || item.value.toLocaleLowerCase().includes(query) || item.detail.toLocaleLowerCase().includes(query)).slice(0, 50);
+                            },
+                            openReference(key) {
+                                this.referenceOpen = key;
+                                this.referenceActiveIndex = -1;
+                            },
+                            closeReference() {
+                                this.referenceOpen = null;
+                                this.referenceActiveIndex = -1;
+                            },
+                            moveReference(key, direction) {
+                                const count = this.referenceOptions(key).length;
+                                if (!count) return;
+                                this.referenceActiveIndex = this.referenceActiveIndex < 0
+                                    ? (direction > 0 ? 0 : count - 1)
+                                    : (this.referenceActiveIndex + direction + count) % count;
+                            },
+                            chooseReference(key, value) {
+                                if (key === "customerName") {
+                                    const customer = this.customers.find((item) => String(item.id) === String(value));
+                                    if (customer) {
+                                        this.reference.customerName = customer.name;
+                                        this.customerId = customer.id;
+                                    }
+                                } else {
+                                    const product = this.products.find((item) => item[key === "productCode" ? "code" : "name"] === value);
+                                    if (product) {
+                                        this.reference.productCode = product.code;
+                                        this.reference.productName = product.name;
+                                    }
+                                }
+                                this.closeReference();
+                            },
+                            syncReferenceProduct(value, field) {
+                                const product = this.products.find((item) => item[field] === value);
+                                if (product) {
+                                    this.reference.productCode = product.code;
+                                    this.reference.productName = product.name;
+                                }
+                            },
+                            referenceKeydown(event, key) {
+                                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                                    event.preventDefault();
+                                    if (this.referenceOpen !== key) this.openReference(key);
+                                    this.moveReference(key, event.key === "ArrowDown" ? 1 : -1);
+                                } else if (event.key === "Enter" && this.referenceOpen === key) {
+                                    const option = this.referenceOptions(key)[this.referenceActiveIndex];
+                                    if (option) {
+                                        event.preventDefault();
+                                        this.chooseReference(key, key === "customerName" ? option.id : option.value);
+                                    }
+                                } else if (event.key === "Escape" || event.key === "Tab") {
+                                    this.closeReference();
+                                }
+                            }
+                        }'
+                        x-on:click.outside="closeReference()"
+                        class="ncr-compact-grid ncr-reference-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-                        <div>
-                            <x-label for="company_customer_id" value="ลูกค้า" class="text-sm font-semibold text-slate-700" />
-                            <select id="company_customer_id" name="company_customer_id" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">ไม่ระบุลูกค้า</option>
-                                @if($v('company_name') && ! $selectedCompanyCustomer)
-                                    <option value="legacy" {{ old('company_customer_id', 'legacy') === 'legacy' ? 'selected' : '' }}>ข้อมูลเดิมที่ยังไม่ผูกทะเบียน: {{ $v('company_name') }}</option>
-                                @endif
-                                @foreach($customers as $customer)
-                                    <option value="{{ $customer->id }}" {{ (string) old('company_customer_id', optional($selectedCompanyCustomer)->id) === (string) $customer->id ? 'selected' : '' }}>{{ $customer->code }} — {{ $customer->name_th }}</option>
-                                @endforeach
-                            </select>
-                            <input type="hidden" name="company_name" value="{{ $v('company_name') }}">
-                            @if(! $selectedCompanyCustomer && $v('company_name'))
-                                <p class="mt-1 text-xs text-slate-500">ข้อมูลเดิมที่ยังไม่ผูกทะเบียน: {{ $v('company_name') }}</p>
-                            @endif
+                        <div class="ncr-reference-combobox">
+                            <x-label for="reference_product_code" value="รหัสสินค้า" class="text-sm font-semibold text-slate-700" />
+                            <x-input id="reference_product_code" name="reference_product_code" maxlength="255" value="{{ $v('reference_product_code') }}" x-model="reference.productCode" x-on:input="openReference('productCode')" x-on:focus="openReference('productCode')" x-on:change="syncReferenceProduct(reference.productCode, 'code')" x-on:keydown="referenceKeydown($event, 'productCode')" x-bind:aria-expanded="referenceOpen === 'productCode'" x-bind:aria-activedescendant="referenceOpen === 'productCode' && referenceActiveIndex >= 0 ? 'reference-product-code-option-' + referenceActiveIndex : null" aria-controls="reference-product-code-options" aria-autocomplete="list" role="combobox" aria-invalid="{{ $errors->has('reference_product_code') ? 'true' : 'false' }}" autocomplete="off" class="mt-2 min-h-[42px] text-sm" />
+                            <ul id="reference-product-code-options" x-cloak x-show="referenceOpen === 'productCode'" x-on:mousedown.prevent role="listbox" class="ncr-reference-options">
+                                <template x-for="(option, index) in referenceOptions('productCode')" :key="option.value">
+                                    <li :id="'reference-product-code-option-' + index" role="option" :aria-selected="referenceActiveIndex === index" x-on:mouseenter="referenceActiveIndex = index" x-on:click="chooseReference('productCode', option.value)" class="ncr-reference-option" :class="{ 'is-active': referenceActiveIndex === index }"><span x-text="option.value"></span><span class="ncr-reference-option__detail" x-text="option.detail"></span></li>
+                                </template>
+                                <li x-show="referenceOptions('productCode').length === 0" class="ncr-reference-empty">ไม่พบสินค้าใน Master</li>
+                            </ul>
+                            @error('reference_product_code') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div class="ncr-reference-combobox">
+                            <x-label for="reference_product_name" value="ชื่อสินค้า" class="text-sm font-semibold text-slate-700" />
+                            <x-input id="reference_product_name" name="reference_product_name" maxlength="255" value="{{ $v('reference_product_name') }}" x-model="reference.productName" x-on:input="openReference('productName')" x-on:focus="openReference('productName')" x-on:change="syncReferenceProduct(reference.productName, 'name')" x-on:keydown="referenceKeydown($event, 'productName')" x-bind:aria-expanded="referenceOpen === 'productName'" x-bind:aria-activedescendant="referenceOpen === 'productName' && referenceActiveIndex >= 0 ? 'reference-product-name-option-' + referenceActiveIndex : null" aria-controls="reference-product-name-options" aria-autocomplete="list" role="combobox" aria-invalid="{{ $errors->has('reference_product_name') ? 'true' : 'false' }}" autocomplete="off" class="mt-2 min-h-[42px] text-sm" />
+                            <ul id="reference-product-name-options" x-cloak x-show="referenceOpen === 'productName'" x-on:mousedown.prevent role="listbox" class="ncr-reference-options">
+                                <template x-for="(option, index) in referenceOptions('productName')" :key="option.value">
+                                    <li :id="'reference-product-name-option-' + index" role="option" :aria-selected="referenceActiveIndex === index" x-on:mouseenter="referenceActiveIndex = index" x-on:click="chooseReference('productName', option.value)" class="ncr-reference-option" :class="{ 'is-active': referenceActiveIndex === index }"><span x-text="option.value"></span><span class="ncr-reference-option__detail" x-text="option.detail"></span></li>
+                                </template>
+                                <li x-show="referenceOptions('productName').length === 0" class="ncr-reference-empty">ไม่พบสินค้าใน Master</li>
+                            </ul>
+                            @error('reference_product_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div class="ncr-reference-combobox">
+                            <x-label for="reference_customer_name" value="ชื่อลูกค้า" class="text-sm font-semibold text-slate-700" />
+                            <x-input id="reference_customer_name" name="reference_customer_name" maxlength="255" value="{{ $v('reference_customer_name') ?: $v('company_name') }}" x-model="reference.customerName" x-on:input="customerId = null; openReference('customerName')" x-on:focus="openReference('customerName')" x-on:keydown="referenceKeydown($event, 'customerName')" x-bind:aria-expanded="referenceOpen === 'customerName'" x-bind:aria-activedescendant="referenceOpen === 'customerName' && referenceActiveIndex >= 0 ? 'reference-customer-name-option-' + referenceActiveIndex : null" aria-controls="reference-customer-name-options" aria-autocomplete="list" role="combobox" aria-invalid="{{ $errors->has('reference_customer_name') ? 'true' : 'false' }}" autocomplete="off" class="mt-2 min-h-[42px] text-sm" />
+                            <ul id="reference-customer-name-options" x-cloak x-show="referenceOpen === 'customerName'" x-on:mousedown.prevent role="listbox" class="ncr-reference-options">
+                                <template x-for="(option, index) in referenceOptions('customerName')" :key="option.id">
+                                    <li :id="'reference-customer-name-option-' + index" role="option" :aria-selected="referenceActiveIndex === index" x-on:mouseenter="referenceActiveIndex = index" x-on:click="chooseReference('customerName', option.id)" class="ncr-reference-option" :class="{ 'is-active': referenceActiveIndex === index }"><span x-text="option.value"></span><span class="ncr-reference-option__detail" x-text="option.detail"></span></li>
+                                </template>
+                                <li x-show="referenceOptions('customerName').length === 0" class="ncr-reference-empty">ไม่พบลูกค้าใน Master</li>
+                            </ul>
+                            <input type="hidden" name="company_customer_id" x-bind:value="customerId || ''">
+                            <input type="hidden" name="company_name" x-bind:value="reference.customerName">
+                            @error('reference_customer_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             @error('company_customer_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
                         @foreach([
                         'generic_name' => 'ชื่อสามัญ',
-                        'reference_no' => 'เลขที่อ้างอิง',
-                        'found_location' => 'พื้นที่ที่พบ',
-                        'machine_or_process' => 'เครื่องจักร/กระบวนการ'
+                        'found_location' => 'พื้นที่ที่พบ'
                         ] as $key => $label)
 
                         <div>
@@ -355,7 +433,7 @@
 
             {{-- รายการผลิตภัณฑ์ --}}
             <section
-                x-data='{ 
+                x-data='{
                     items: {!! json_encode($initialItems, JSON_HEX_APOS | JSON_HEX_QUOT) !!},
                     products: {!! json_encode($products->map(fn($product) => ['id' => $product->id, 'code' => $product->code, 'name' => $product->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
                     editingIndex: null,
@@ -652,8 +730,7 @@
                         <textarea
                             name="problem_description"
                             rows="5"
-                            class="mt-2 block w-full resize-y rounded-lg border border-slate-300 bg-white text-sm shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500"
-                            required>{{ $v('problem_description') }}</textarea>
+                            class="mt-2 block w-full resize-y rounded-lg border border-slate-300 bg-white text-sm shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500">{{ $v('problem_description') }}</textarea>
                     </div>
 
 

@@ -184,13 +184,13 @@ class NcrPresentationContractTest extends TestCase
         $reportForm = file_get_contents(resource_path('views/ncr/form.blade.php'));
 
         $this->assertIsString($reportForm);
-        $this->assertStringContainsString('<dialog x-ref="itemDialog" x-on:close="itemDialogOpen = false" closedby="any"', $reportForm);
+        $this->assertStringContainsString('<dialog x-ref="itemDialog" x-on:close="itemDialogOpen = false"', $reportForm);
         $this->assertStringContainsString('disabled x-bind:disabled="!itemDialogOpen"', $reportForm);
         $this->assertStringContainsString('this.$refs.itemDialog.showModal()', $reportForm);
         $this->assertStringContainsString('x-on:click="saveItem()"', $reportForm);
         $this->assertStringContainsString('x-on:click="editItem(index)"', $reportForm);
         $this->assertStringContainsString('x-show="items.length === 0"', $reportForm);
-        $this->assertStringContainsString('ยังไม่มีรายการผลิตภัณฑ์', $reportForm);
+        $this->assertStringContainsString('ยังไม่มีรายการสินค้า', $reportForm);
         $this->assertStringContainsString("                    : [];", $reportForm);
         $this->assertStringContainsString(':name="`items[${index}][product_name]`"', $reportForm);
         $this->assertStringContainsString(':name="`items[${index}][problem_description]`"', $reportForm);
@@ -208,6 +208,7 @@ class NcrPresentationContractTest extends TestCase
         $this->assertStringContainsString('aria-label="ข้อมูลสำคัญของรายงาน"', $showView);
         $this->assertStringContainsString('หน่วยงานผู้รายงาน:', $showView);
         $this->assertStringContainsString('<dt>หน่วยงานที่พบปัญหา</dt>', $showView);
+        $this->assertStringNotContainsString('<dt>ความรุนแรง</dt>', $showView);
         $this->assertStringContainsString('<caption class="sr-only">รายการผลิตภัณฑ์ที่เกี่ยวข้องกับ NCR</caption>', $showView);
         $this->assertSame(8, substr_count($showView, 'scope="col"'));
         $this->assertStringContainsString('aria-haspopup="dialog"', $showView);

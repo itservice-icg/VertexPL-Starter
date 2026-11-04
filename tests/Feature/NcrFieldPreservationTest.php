@@ -51,7 +51,6 @@ class NcrFieldPreservationTest extends TestCase
 
         $this->assertSame('AI', $report->legacy_form_scope_code);
         $this->assertSame('ชื่อสามัญเดิม', $report->generic_name);
-        $this->assertSame('REF-FM-001', $report->reference_no);
         $this->assertSame('KG', $item->defect_unit_name);
         $this->assertSame('PCS', $item->total_unit_name);
         $this->assertSame(20.0, $item->defect_percentage);
@@ -70,7 +69,8 @@ class NcrFieldPreservationTest extends TestCase
             ->assertOk()
             ->assertSee('AI / UP')
             ->assertSee('ชื่อสามัญเดิม')
-            ->assertSee('REF-FM-001')
+            ->assertDontSee('เลขที่อ้างอิง')
+            ->assertDontSee('เครื่องจักร/กระบวนการ')
             ->assertSee('20.00%')
             ->assertSee('FM-DQA-06');
 
@@ -305,7 +305,6 @@ class NcrFieldPreservationTest extends TestCase
             'severity_level_id' => $this->severity->id,
             'company_name' => 'VertexPL',
             'generic_name' => 'ชื่อสามัญเดิม',
-            'reference_no' => 'REF-FM-001',
             'found_location' => 'คลังสินค้า',
             'problem_description' => 'รายละเอียดความผิดปกติจากแบบฟอร์มเดิม',
             'items' => [[

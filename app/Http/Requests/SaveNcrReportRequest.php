@@ -57,19 +57,21 @@ class SaveNcrReportRequest extends FormRequest
             static fn ($code) => $code !== null && $code !== ''
         )));
 
+        $report = $this->route('ncr');
+        if ($report instanceof NcrReport && ! $this->exists('severity_level_id')) {
+            $this->merge(['severity_level_id' => $report->severity_level_id]);
+        }
+
         $this->merge([
+            'problem_description' => $this->input('problem_description') ?? '',
             'items' => $items,
-            'company_name' => ! $this->exists('company_customer_id')
-                ? $this->input('company_name')
-                : ($this->input('company_customer_id') === 'legacy'
-                    ? $this->input('company_name')
-                    : ($this->filled('company_customer_id')
-                        ? Customer::query()
-                            ->where('is_active', true)
-                            ->whereNull('deleted_at')
-                            ->whereKey($this->input('company_customer_id'))
-                            ->value('name_th')
-                        : null)),
+            'company_name' => $this->filled('company_customer_id')
+                ? Customer::query()
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at')
+                    ->whereKey($this->input('company_customer_id'))
+                    ->value('name_th')
+                : ($this->input('reference_customer_name') ?: $this->input('company_name')),
             'legacy_form_scope_code' => $scopeCodes ? implode(',', $scopeCodes) : null,
         ]);
     }
@@ -81,9 +83,16 @@ class SaveNcrReportRequest extends FormRequest
             'legacy_form_scope_code'=>['nullable', $this->formScopeRule()],
             'legacy_form_scope_codes'=>['nullable','array','max:1'],
             'legacy_form_scope_codes.*'=>['required', $this->formScopeRule(), 'distinct'],
-            'reporter_department_id'=>['nullable','exists:departments,id'],'related_department_id'=>['nullable','exists:departments,id'],'problem_type_id'=>['required','exists:problem_types,id'],'severity_level_id'=>['required','exists:severity_levels,id'],
+            'reporter_department_id'=>['nullable','exists:departments,id'],'related_department_id'=>['nullable','exists:departments,id'],'problem_type_id'=>['required','exists:problem_types,id'],'severity_level_id'=>['nullable','exists:severity_levels,id'],
             'company_name'=>['nullable','string','max:255'],
+            'reference_product_code'=>['nullable','string','max:255'],
+            'reference_product_name'=>['nullable','string','max:255'],
+            'reference_customer_name'=>['nullable','string','max:255'],
             'company_customer_id'=>['nullable',function ($attribute, $value, $fail) {
+                if ($value === null || $value === '') {
+                    return;
+                }
+
                 if ($value === 'legacy') {
                     $report = $this->route('ncr');
                     if ($report instanceof NcrReport && $this->input('company_name') === $report->company_name) {
@@ -100,7 +109,7 @@ class SaveNcrReportRequest extends FormRequest
                 $fail('กรุณาเลือกลูกค้าที่เปิดใช้งานจาก NCR Master Data');
             }],
             'generic_name'=>['nullable','string','max:255'],'supplier_id'=>['nullable','integer','exists:suppliers,id'],'supplier_name'=>['nullable','string','max:255'],'production_date'=>['nullable','date'],'found_location'=>['nullable','string','max:255'],
-            'machine_or_process'=>['nullable','string','max:255'],'reference_no'=>['nullable','string','max:100'],'problem_description'=>['required','string','max:10000'],
+            'problem_description'=>['nullable','string','max:10000'],
             'initial_disposition_type_id'=>['nullable','exists:disposition_types,id'],
             'initial_disposition_detail'=>['nullable','string','max:5000'],
             'initial_responsible_department_id'=>['nullable','exists:departments,id'],
@@ -134,6 +143,18 @@ class SaveNcrReportRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if ($this->filled('company_customer_id') && $this->input('company_customer_id') !== 'legacy' && $this->filled('reference_customer_name')) {
+                $customerName = Customer::query()
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at')
+                    ->whereKey($this->input('company_customer_id'))
+                    ->value('name_th');
+
+                if ($customerName !== $this->input('reference_customer_name')) {
+                    $validator->errors()->add('reference_customer_name', 'ชื่อลูกค้าต้องตรงกับลูกค้าที่เลือกจาก Master');
+                }
+            }
+
             $ncr = $this->route('ncr');
             $existingItems = $ncr instanceof NcrReport ? $ncr->items()->get()->keyBy('id') : collect();
             $existingSupplierId = $ncr instanceof NcrReport ? $ncr->supplier_id : null;

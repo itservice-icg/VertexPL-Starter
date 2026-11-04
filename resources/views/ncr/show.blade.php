@@ -340,7 +340,6 @@
                     <div><dt>ผู้แจ้ง</dt><dd><span class="block">{{ $ncr->reporter->name }}</span><span class="mt-1 block text-xs font-normal text-slate-500">หน่วยงานผู้รายงาน: {{ optional($ncr->reporterDepartment)->name_th ?: '-' }}</span></dd></div>
                     <div><dt>หน่วยงานที่พบปัญหา</dt><dd>{{ $ncr->relatedDepartment?->name_th ?: '-' }}</dd></div>
                     <div><dt>ประเภท</dt><dd>{{ optional($ncr->problemType)->name_th ?: '-' }}</dd></div>
-                    <div><dt>ความรุนแรง</dt><dd>{{ optional($ncr->severityLevel)->name_th ?: '-' }}</dd></div>
                 </dl>
                 <div>
                     <div class="ncr-report-section-heading">
@@ -393,7 +392,7 @@
                                                     <div class="ncr-item-dialog__summary"><strong>สรุปเหตุการณ์ NCR (ภาพรวม)</strong><p>{{ $ncr->problem_description }}</p></div>
                                                     @endif
                                                     <dl class="ncr-item-dialog__grid">
-                                                        @foreach(['ขอบเขตแบบฟอร์ม'=>optional($ncr->formScope)->name_th ?: ($ncr->legacy_form_scope_code ?: 'ยังไม่ได้เลือก'),'เลขที่ NCR'=>$ncr->ncr_no,'วันที่ออก'=>\App\Support\ThaiDateFormatter::formatDate($ncr->report_date),'วันที่/เวลาที่พบ'=>\App\Support\ThaiDateFormatter::formatDate($ncr->found_date).($ncr->found_time?' '.$ncr->found_time:''),'ผู้พบ / ผู้แจ้ง'=>optional($ncr->reporter)->name,'หน่วยงานผู้รายงาน'=>optional($ncr->reporterDepartment)->name_th,'หน่วยงานที่พบปัญหา'=>optional($ncr->relatedDepartment)->name_th,'ประเภทที่พบ'=>optional($ncr->problemType)->name_th,'ระดับความรุนแรง'=>optional($ncr->severityLevel)->name_th,'บริษัท'=>$ncr->company_name,'ชื่อสามัญ'=>$ncr->generic_name,'เลขที่อ้างอิง'=>$ncr->reference_no,'ผู้ผลิต/ผู้ขาย'=>$ncr->supplier_name,'พื้นที่ที่พบ'=>$ncr->found_location,'เครื่องจักร/กระบวนการ'=>$ncr->machine_or_process] as $label => $value)
+                                                        @foreach(['ขอบเขตแบบฟอร์ม'=>optional($ncr->formScope)->name_th ?: ($ncr->legacy_form_scope_code ?: 'ยังไม่ได้เลือก'),'เลขที่ NCR'=>$ncr->ncr_no,'วันที่ออก'=>\App\Support\ThaiDateFormatter::formatDate($ncr->report_date),'วันที่/เวลาที่พบ'=>\App\Support\ThaiDateFormatter::formatDate($ncr->found_date).($ncr->found_time?' '.$ncr->found_time:''),'ผู้พบ / ผู้แจ้ง'=>optional($ncr->reporter)->name,'หน่วยงานผู้รายงาน'=>optional($ncr->reporterDepartment)->name_th,'หน่วยงานที่พบปัญหา'=>optional($ncr->relatedDepartment)->name_th,'ประเภทที่พบ'=>optional($ncr->problemType)->name_th,'ระดับความรุนแรง'=>optional($ncr->severityLevel)->name_th,'บริษัท'=>$ncr->company_name,'ชื่อสามัญ'=>$ncr->generic_name,'ผู้ผลิต/ผู้ขาย'=>$ncr->supplier_name,'พื้นที่ที่พบ'=>$ncr->found_location] as $label => $value)
                                                             @if(filled($value))<div><dt>{{ $label }}</dt><dd>{{ $value }}</dd></div>@endif
                                                         @endforeach
                                                     </dl>

@@ -54,7 +54,7 @@ class NcrBusinessReferenceTest extends TestCase
             ->assertOk()
             ->assertSee('P-001')
             ->assertSee('สินค้าเดิม')
-            ->assertSee('ลูกค้าเดิม')
+            ->assertSee('name="reference_customer_name"', false)
             ->assertSee('ผู้ขายเดิม');
 
         $this->product->update(['name_th' => 'สินค้าเปลี่ยนชื่อ']);

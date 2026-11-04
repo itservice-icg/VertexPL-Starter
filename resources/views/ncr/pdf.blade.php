@@ -364,10 +364,8 @@
                         <td colspan="4"><div class="field">{{ $poNo }}</div></td>
                         <td colspan="2" class="label">Lot No.</td>
                         <td colspan="5"><div class="field">{{ $lotNo }}</div></td>
-                        <td colspan="2" class="label">เลขที่อ้างอิง</td>
-                        <td colspan="4"><div class="field">{{ $ncr->reference_no }}</div></td>
                         <td colspan="2" class="label">ชื่อลูกค้า</td>
-                        <td colspan="2"><div class="field">{{ $customerName }}</div></td>
+                        <td colspan="8"><div class="field">{{ $customerName }}</div></td>
                     </tr>
 
                     <tr class="h52">
