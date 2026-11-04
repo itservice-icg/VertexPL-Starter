@@ -647,7 +647,7 @@
                         <x-label
                             value="สรุปเหตุการณ์ NCR (ภาพรวม)"
                             class="text-sm font-semibold text-slate-700" />
-                        <p class="mt-1 text-xs leading-5 text-slate-500">อธิบายภาพรวมของเหตุการณ์ ส่วนรายละเอียดเฉพาะสินค้าให้กรอกในแต่ละรายการ</p>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">ระบุว่าเกิดอะไรขึ้น เมื่อใดและที่ไหน รวมถึงผลกระทบที่พบ ส่วนรายละเอียดเฉพาะสินค้าให้กรอกในแต่ละรายการ</p>
 
                         <textarea
                             name="problem_description"
