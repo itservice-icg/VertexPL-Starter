@@ -8,7 +8,7 @@
 
         <header class="ncr-create-heading">
             <h1>{{ $editing ? 'แก้ไข '.$ncr->ncr_no : 'สร้างรายงาน NCR ใหม่' }}</h1>
-            <p>กรอกข้อมูลเหตุการณ์ เลือกสินค้า และระบุรายละเอียดที่พบ · <span>* ข้อมูลบังคับ</span></p>
+            <p>กรอกข้อมูลเหตุการณ์ เลือกสินค้า และระบุรายละเอียดที่พบ · <span>* คือข้อมูลบังคับ</span></p>
             @if($editing && ! empty($returnReason))
                 <p class="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"><strong>เหตุผลที่ส่งกลับให้แก้ไข:</strong> {{ $returnReason }}</p>
             @endif
@@ -57,16 +57,15 @@
             if ($initialItems === null) {
                 $initialItems = $editing
                     ? $ncr->items
+                    ->take(1)
                     ->map(fn($item) => $item->only([
                         'id',
                         'product_id',
-                        'customer_id',
                         'product_code',
                         'product_name',
                         'lot_no',
                         'po_no',
                         'batch_no',
-                        'customer_name',
                         'defect_quantity',
                         'defect_unit_name',
                         'total_quantity',
@@ -78,6 +77,8 @@
                     ->all()
                     : [];
             }
+            $initialItems = array_values((array) $initialItems);
+            $initialItem = $initialItems[0] ?? [];
             ?>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -90,7 +91,7 @@
                     <div class="ncr-compact-grid grid grid-cols-1 gap-3 sm:grid-cols-2">
 
                         <div>
-                            <x-label
+                            <x-label for="legacy_form_scope_code"
                                 value="แบบฟอร์มที่ใช้"
                                 class="text-sm font-semibold text-slate-700" />
 
@@ -105,6 +106,8 @@
                             <select
                                 id="legacy_form_scope_code"
                                 name="legacy_form_scope_code"
+                                aria-invalid="{{ $errors->has('legacy_form_scope_code') ? 'true' : 'false' }}"
+                                @if($errors->has('legacy_form_scope_code')) aria-describedby="legacy-form-scope-error" @endif
                                 class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 bg-white text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="" {{ $selectedScopeCode === '' ? 'selected' : '' }}>เลือกแบบฟอร์ม</option>
                                 @if($previousScopeIsInactive)
@@ -122,45 +125,57 @@
                             @if($previousScopeIsInactive)
                                 <p class="mt-1 text-xs text-slate-500">แบบฟอร์มเดิมปิดใช้งาน ระบบจะเก็บค่าเดิมไว้ หากต้องการเปลี่ยน ให้เลือกแบบฟอร์มที่เปิดใช้งาน</p>
                             @endif
-                            @error('legacy_form_scope_code') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('legacy_form_scope_code') <p id="legacy-form-scope-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <x-label
-                                value="วันที่ออก"
-                                class="text-sm font-semibold text-slate-700" />
+                            <x-label for="report_date" class="text-sm font-semibold text-slate-700">
+                                วันที่ออก <span class="text-red-600" aria-hidden="true">*</span>
+                            </x-label>
 
                             <x-input
+                                id="report_date"
                                 type="date"
                                 name="report_date"
                                 class="mt-2 block min-h-[42px] w-full"
                                 value="{{ $v('report_date', now(config('app.display_timezone'))->toDateString()) }}"
+                                aria-invalid="{{ $errors->has('report_date') ? 'true' : 'false' }}"
+                                :aria-describedby="$errors->has('report_date') ? 'report-date-error' : false"
                                 required />
+                            @error('report_date') <p id="report-date-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <x-label
-                                value="วันที่พบ"
-                                class="text-sm font-semibold text-slate-700" />
+                            <x-label for="found_date" class="text-sm font-semibold text-slate-700">
+                                วันที่พบ <span class="text-red-600" aria-hidden="true">*</span>
+                            </x-label>
 
                             <x-input
+                                id="found_date"
                                 type="date"
                                 name="found_date"
                                 class="mt-2 block min-h-[42px] w-full"
                                 value="{{ $v('found_date', now(config('app.display_timezone'))->toDateString()) }}"
+                                aria-invalid="{{ $errors->has('found_date') ? 'true' : 'false' }}"
+                                :aria-describedby="$errors->has('found_date') ? 'found-date-error' : false"
                                 required />
+                            @error('found_date') <p id="found-date-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <x-label
+                            <x-label for="found_time"
                                 value="เวลาที่พบ"
                                 class="text-sm font-semibold text-slate-700" />
 
                             <x-input
+                                id="found_time"
                                 type="time"
                                 name="found_time"
                                 class="mt-2 block min-h-[42px] w-full"
+                                aria-invalid="{{ $errors->has('found_time') ? 'true' : 'false' }}"
+                                :aria-describedby="$errors->has('found_time') ? 'found-time-error' : false"
                                 value="{{ $v('found_time', $editing ? '' : now(config('app.display_timezone'))->format('H:i')) }}" />
+                            @error('found_time') <p id="found-time-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                     </div>
@@ -168,15 +183,16 @@
 
                 <div class="mt-3 border-t border-slate-200 pt-3">
 
-                    <x-label
-                        value="หน่วยงานผู้รายงาน"
-                        class="text-sm font-semibold text-slate-700" />
+                    <x-label for="reporter_department_id" class="text-sm font-semibold text-slate-700">
+                        หน่วยงานผู้รายงาน <span class="text-red-600" aria-hidden="true">*</span>
+                    </x-label>
 
                     <p class="mb-2 mt-1 text-xs text-slate-500">
                         บัญชีนี้ยังไม่ได้ผูกหน่วยงาน กรุณาเลือกหน่วยงานสำหรับ NCR นี้
                     </p>
 
                     <select
+                        id="reporter_department_id"
                         name="reporter_department_id"
                         class="block min-h-[42px] w-full rounded-lg border-slate-300 bg-white text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500"
                         required>
@@ -210,11 +226,12 @@
                     <div class="ncr-compact-grid grid grid-cols-1 gap-3 sm:grid-cols-2">
 
                         <div>
-                            <x-label
-                                value="ประเภทที่พบ"
-                                class="text-sm font-semibold text-slate-700" />
+                            <x-label for="problem_type_id" class="text-sm font-semibold text-slate-700">
+                                ประเภทที่พบ <span class="text-red-600" aria-hidden="true">*</span>
+                            </x-label>
 
                             <select
+                                id="problem_type_id"
                                 name="problem_type_id"
                                 class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500"
                                 required>
@@ -231,12 +248,15 @@
                         </div>
 
                         <div>
-                            <x-label
+                            <x-label for="related_department_id"
                                 value="หน่วยงานที่พบปัญหา"
                                 class="text-sm font-semibold text-slate-700" />
 
                             <select
+                                id="related_department_id"
                                 name="related_department_id"
+                                aria-invalid="{{ $errors->has('related_department_id') ? 'true' : 'false' }}"
+                                @if($errors->has('related_department_id')) aria-describedby="related-department-error" @endif
                                 class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">เลือกหน่วยงานที่พบปัญหา</option>
 
@@ -248,6 +268,7 @@
                                 </option>
                                 @endforeach
                             </select>
+                            @error('related_department_id') <p id="related-department-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                     </div>
@@ -258,150 +279,86 @@
 
 
                 {{-- ข้อมูลทั่วไป --}}
-                @php($selectedCompanyCustomer = $customers->firstWhere('name_th', $v('company_name')))
                 <div id="ncr-reference" class="ncr-form-section ncr-form-section--compact scroll-mt-28 p-3 sm:p-4 lg:col-span-2">
                     <div class="ncr-form-section__header ncr-compact-section-header -mx-3 -mt-3 mb-3 sm:-mx-4 sm:-mt-4">
                         <h2 class="ncr-section-title mt-1">ข้อมูลอ้างอิง</h2>
                         <p class="ncr-section-description mt-1">ข้อมูลลูกค้า สินค้า ผู้ผลิต พื้นที่ และกระบวนการที่เกี่ยวข้อง</p>
                     </div>
 
-                    <div
-                        x-data='{
-                            products: {!! json_encode($products->map(fn($product) => ["code" => $product->code, "name" => $product->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
-                            customers: {!! json_encode($customers->map(fn($customer) => ["id" => $customer->id, "code" => $customer->code, "name" => $customer->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
-                            reference: {
-                                productCode: {!! json_encode($v("reference_product_code"), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
-                                productName: {!! json_encode($v("reference_product_name"), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
-                                customerName: {!! json_encode($v("reference_customer_name") ?: $v("company_name"), JSON_HEX_APOS | JSON_HEX_QUOT) !!}
-                            },
-                            customerId: {!! json_encode(old('company_customer_id', optional($selectedCompanyCustomer)->id)) !!},
-                            referenceOpen: null,
-                            referenceActiveIndex: -1,
-                            referenceOptions(key) {
-                                const query = String(this.reference[key] || "").trim().toLocaleLowerCase();
-                                const options = key === "customerName"
-                                    ? this.customers.map((item) => ({ value: item.name, detail: item.code, id: item.id }))
-                                    : this.products.map((item) => ({
-                                        value: key === "productCode" ? item.code : item.name,
-                                        detail: key === "productCode" ? item.name : item.code
-                                    }));
-                                return options.filter((item) => !query || item.value.toLocaleLowerCase().includes(query) || item.detail.toLocaleLowerCase().includes(query)).slice(0, 50);
-                            },
-                            openReference(key) {
-                                this.referenceOpen = key;
-                                this.referenceActiveIndex = -1;
-                            },
-                            closeReference() {
-                                this.referenceOpen = null;
-                                this.referenceActiveIndex = -1;
-                            },
-                            moveReference(key, direction) {
-                                const count = this.referenceOptions(key).length;
-                                if (!count) return;
-                                this.referenceActiveIndex = this.referenceActiveIndex < 0
-                                    ? (direction > 0 ? 0 : count - 1)
-                                    : (this.referenceActiveIndex + direction + count) % count;
-                            },
-                            chooseReference(key, value) {
-                                if (key === "customerName") {
-                                    const customer = this.customers.find((item) => String(item.id) === String(value));
-                                    if (customer) {
-                                        this.reference.customerName = customer.name;
-                                        this.customerId = customer.id;
-                                    }
-                                } else {
-                                    const product = this.products.find((item) => item[key === "productCode" ? "code" : "name"] === value);
-                                    if (product) {
-                                        this.reference.productCode = product.code;
-                                        this.reference.productName = product.name;
-                                    }
-                                }
-                                this.closeReference();
-                            },
-                            syncReferenceProduct(value, field) {
-                                const product = this.products.find((item) => item[field] === value);
+                    <div class="ncr-compact-grid ncr-reference-grid grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                        x-data="{
+                            products: {{ \Illuminate\Support\Js::from($products->map(fn($product) => ['id' => $product->id, 'code' => $product->code, 'name' => $product->name_th])->values()) }},
+                            productId: {{ \Illuminate\Support\Js::from(old('items.0.product_id', $initialItem['product_id'] ?? '')) }},
+                            productCode: {{ \Illuminate\Support\Js::from(old('items.0.product_code', $initialItem['product_code'] ?? '')) }},
+                            productName: {{ \Illuminate\Support\Js::from(old('items.0.product_name', $initialItem['product_name'] ?? '')) }},
+                            selectProduct(id) {
+                                this.productId = id || '';
+                                const product = this.products.find((entry) => String(entry.id) === String(id));
                                 if (product) {
-                                    this.reference.productCode = product.code;
-                                    this.reference.productName = product.name;
-                                }
-                            },
-                            referenceKeydown(event, key) {
-                                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                                    event.preventDefault();
-                                    if (this.referenceOpen !== key) this.openReference(key);
-                                    this.moveReference(key, event.key === "ArrowDown" ? 1 : -1);
-                                } else if (event.key === "Enter" && this.referenceOpen === key) {
-                                    const option = this.referenceOptions(key)[this.referenceActiveIndex];
-                                    if (option) {
-                                        event.preventDefault();
-                                        this.chooseReference(key, key === "customerName" ? option.id : option.value);
-                                    }
-                                } else if (event.key === "Escape" || event.key === "Tab") {
-                                    this.closeReference();
+                                    this.productCode = product.code;
+                                    this.productName = product.name;
+                                    this.$refs.productNameInput.setCustomValidity('');
                                 }
                             }
-                        }'
-                        x-on:click.outside="closeReference()"
-                        class="ncr-compact-grid ncr-reference-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-
-                        <div class="ncr-reference-combobox">
-                            <x-label for="reference_product_code" value="รหัสสินค้า" class="text-sm font-semibold text-slate-700" />
-                            <x-input id="reference_product_code" name="reference_product_code" maxlength="255" value="{{ $v('reference_product_code') }}" x-model="reference.productCode" x-on:input="openReference('productCode')" x-on:focus="openReference('productCode')" x-on:change="syncReferenceProduct(reference.productCode, 'code')" x-on:keydown="referenceKeydown($event, 'productCode')" x-bind:aria-expanded="referenceOpen === 'productCode'" x-bind:aria-activedescendant="referenceOpen === 'productCode' && referenceActiveIndex >= 0 ? 'reference-product-code-option-' + referenceActiveIndex : null" aria-controls="reference-product-code-options" aria-autocomplete="list" role="combobox" aria-invalid="{{ $errors->has('reference_product_code') ? 'true' : 'false' }}" autocomplete="off" class="mt-2 min-h-[42px] text-sm" />
-                            <ul id="reference-product-code-options" x-cloak x-show="referenceOpen === 'productCode'" x-on:mousedown.prevent role="listbox" class="ncr-reference-options">
-                                <template x-for="(option, index) in referenceOptions('productCode')" :key="option.value">
-                                    <li :id="'reference-product-code-option-' + index" role="option" :aria-selected="referenceActiveIndex === index" x-on:mouseenter="referenceActiveIndex = index" x-on:click="chooseReference('productCode', option.value)" class="ncr-reference-option" :class="{ 'is-active': referenceActiveIndex === index }"><span x-text="option.value"></span><span class="ncr-reference-option__detail" x-text="option.detail"></span></li>
-                                </template>
-                                <li x-show="referenceOptions('productCode').length === 0" class="ncr-reference-empty">ไม่พบสินค้าใน Master</li>
-                            </ul>
-                            @error('reference_product_code') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        }">
+                        <div class="min-w-0">
+                            <x-label for="customer_id" class="text-sm font-semibold text-slate-700">
+                                ชื่อลูกค้า <span class="text-red-600" aria-hidden="true">*</span>
+                            </x-label>
+                            <select id="customer_id" name="customer_id" required oninvalid="this.setCustomValidity('กรุณาเลือกลูกค้า')" onchange="this.setCustomValidity('')" aria-invalid="{{ $errors->has('customer_id') ? 'true' : 'false' }}" @if($errors->has('customer_id')) aria-describedby="customer-id-error" @endif class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">เลือกลูกค้าจากทะเบียน</option>
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}" {{ (string) old('customer_id', $editing ? $ncr->customer_id : '') === (string) $customer->id ? 'selected' : '' }}>{{ $customer->code }} — {{ $customer->name_th }}{{ $customer->is_active && ! $customer->trashed() ? '' : ' (ปิดใช้งาน)' }}</option>
+                                @endforeach
+                            </select>
+                            @error('customer_id') <p id="customer-id-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
-                        <div class="ncr-reference-combobox">
-                            <x-label for="reference_product_name" value="ชื่อสินค้า" class="text-sm font-semibold text-slate-700" />
-                            <x-input id="reference_product_name" name="reference_product_name" maxlength="255" value="{{ $v('reference_product_name') }}" x-model="reference.productName" x-on:input="openReference('productName')" x-on:focus="openReference('productName')" x-on:change="syncReferenceProduct(reference.productName, 'name')" x-on:keydown="referenceKeydown($event, 'productName')" x-bind:aria-expanded="referenceOpen === 'productName'" x-bind:aria-activedescendant="referenceOpen === 'productName' && referenceActiveIndex >= 0 ? 'reference-product-name-option-' + referenceActiveIndex : null" aria-controls="reference-product-name-options" aria-autocomplete="list" role="combobox" aria-invalid="{{ $errors->has('reference_product_name') ? 'true' : 'false' }}" autocomplete="off" class="mt-2 min-h-[42px] text-sm" />
-                            <ul id="reference-product-name-options" x-cloak x-show="referenceOpen === 'productName'" x-on:mousedown.prevent role="listbox" class="ncr-reference-options">
-                                <template x-for="(option, index) in referenceOptions('productName')" :key="option.value">
-                                    <li :id="'reference-product-name-option-' + index" role="option" :aria-selected="referenceActiveIndex === index" x-on:mouseenter="referenceActiveIndex = index" x-on:click="chooseReference('productName', option.value)" class="ncr-reference-option" :class="{ 'is-active': referenceActiveIndex === index }"><span x-text="option.value"></span><span class="ncr-reference-option__detail" x-text="option.detail"></span></li>
-                                </template>
-                                <li x-show="referenceOptions('productName').length === 0" class="ncr-reference-empty">ไม่พบสินค้าใน Master</li>
-                            </ul>
-                            @error('reference_product_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                        </div>
-
-                        <div class="ncr-reference-combobox">
-                            <x-label for="reference_customer_name" value="ชื่อลูกค้า" class="text-sm font-semibold text-slate-700" />
-                            <x-input id="reference_customer_name" name="reference_customer_name" maxlength="255" value="{{ $v('reference_customer_name') ?: $v('company_name') }}" x-model="reference.customerName" x-on:input="customerId = null; openReference('customerName')" x-on:focus="openReference('customerName')" x-on:keydown="referenceKeydown($event, 'customerName')" x-bind:aria-expanded="referenceOpen === 'customerName'" x-bind:aria-activedescendant="referenceOpen === 'customerName' && referenceActiveIndex >= 0 ? 'reference-customer-name-option-' + referenceActiveIndex : null" aria-controls="reference-customer-name-options" aria-autocomplete="list" role="combobox" aria-invalid="{{ $errors->has('reference_customer_name') ? 'true' : 'false' }}" autocomplete="off" class="mt-2 min-h-[42px] text-sm" />
-                            <ul id="reference-customer-name-options" x-cloak x-show="referenceOpen === 'customerName'" x-on:mousedown.prevent role="listbox" class="ncr-reference-options">
-                                <template x-for="(option, index) in referenceOptions('customerName')" :key="option.id">
-                                    <li :id="'reference-customer-name-option-' + index" role="option" :aria-selected="referenceActiveIndex === index" x-on:mouseenter="referenceActiveIndex = index" x-on:click="chooseReference('customerName', option.id)" class="ncr-reference-option" :class="{ 'is-active': referenceActiveIndex === index }"><span x-text="option.value"></span><span class="ncr-reference-option__detail" x-text="option.detail"></span></li>
-                                </template>
-                                <li x-show="referenceOptions('customerName').length === 0" class="ncr-reference-empty">ไม่พบลูกค้าใน Master</li>
-                            </ul>
-                            <input type="hidden" name="company_customer_id" x-bind:value="customerId || ''">
-                            <input type="hidden" name="company_name" x-bind:value="reference.customerName">
-                            @error('reference_customer_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                            @error('company_customer_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                        </div>
+                        <div class="min-w-0">
+                                <x-label for="product_id" value="ทะเบียนสินค้า" class="text-sm font-semibold text-slate-700" />
+                                <select id="product_id" name="items[0][product_id]" x-model="productId" x-on:change="selectProduct($event.target.value)" class="mt-2 block min-h-[42px] w-full min-w-0 rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">ไม่เลือกจากทะเบียน / กรอกเอง</option>
+                                    @foreach($products as $product)
+                                        <option value="{{ $product->id }}">{{ $product->code }} — {{ $product->name_th }}</option>
+                                    @endforeach
+                                </select>
+                                @error('items.0.product_id') <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
+                            </div>
+                        <div class="min-w-0">
+                                <x-label for="product_code" value="รหัสสินค้า" class="text-sm font-semibold text-slate-700" />
+                                <input id="product_code" name="items[0][product_code]" type="text" maxlength="255" x-model="productCode" x-on:input="productId = ''" value="{{ old('items.0.product_code', $initialItem['product_code'] ?? '') }}" class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @error('items.0.product_code') <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
+                            </div>
+                        <div class="min-w-0">
+                                <x-label for="product_name" class="text-sm font-semibold text-slate-700">ชื่อสินค้า <span class="text-red-600" aria-hidden="true">*</span></x-label>
+                                <input id="product_name" x-ref="productNameInput" name="items[0][product_name]" type="text" maxlength="255" required oninvalid="this.setCustomValidity('กรุณากรอกชื่อสินค้า')" oninput="this.setCustomValidity('')" x-model="productName" x-on:input="productId = ''" value="{{ old('items.0.product_name', $initialItem['product_name'] ?? '') }}" aria-invalid="{{ $errors->has('items.0.product_name') ? 'true' : 'false' }}" @if($errors->has('items.0.product_name')) aria-describedby="product-name-error" @endif class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @error('items.0.product_name') <p id="product-name-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
+                            </div>
 
                         @foreach([
                         'generic_name' => 'ชื่อสามัญ',
                         'found_location' => 'พื้นที่ที่พบ'
                         ] as $key => $label)
 
-                        <div>
+                        <div class="min-w-0">
                             <x-label
+                                :for="$key"
                                 :value="$label"
                                 class="text-sm font-semibold text-slate-700" />
 
                             <x-input
+                                :id="$key"
                                 :name="$key"
                                 class="mt-2 block min-h-[42px] w-full"
+                                :aria-invalid="$errors->has($key) ? 'true' : 'false'"
+                                :aria-describedby="$errors->has($key) ? $key . '-error' : false"
                                 :value="$v($key)" />
+                            @error($key) <p id="{{ $key }}-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                         @endforeach
 
-                        <div>
+                        <div class="min-w-0">
                             <x-label for="supplier_id" value="ผู้ผลิต/ผู้ขาย" class="text-sm font-semibold text-slate-700" />
                             <select id="supplier_id" name="supplier_id" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">ไม่ระบุผู้ผลิต/ผู้ขาย</option>
@@ -414,16 +371,20 @@
                             @endif
                         </div>
 
-                        <div>
-                            <x-label
+                        <div class="min-w-0">
+                            <x-label for="production_date"
                                 value="วันที่ผลิต"
                                 class="text-sm font-semibold text-slate-700" />
 
                             <x-input
+                                id="production_date"
                                 type="date"
                                 name="production_date"
                                 class="mt-2 block min-h-[42px] w-full"
+                                aria-invalid="{{ $errors->has('production_date') ? 'true' : 'false' }}"
+                                :aria-describedby="$errors->has('production_date') ? 'production-date-error' : false"
                                 value="{{ $v('production_date') }}" />
+                            @error('production_date') <p id="production-date-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                     </div>
@@ -432,325 +393,116 @@
             </div>
 
             {{-- รายการผลิตภัณฑ์ --}}
-            <section
-                x-data='{
-                    items: {!! json_encode($initialItems, JSON_HEX_APOS | JSON_HEX_QUOT) !!},
-                    products: {!! json_encode($products->map(fn($product) => ['id' => $product->id, 'code' => $product->code, 'name' => $product->name_th])->values(), JSON_HEX_APOS | JSON_HEX_QUOT) !!},
-                    editingIndex: null,
-                    itemDialogOpen: false,
-                    itemDraft: {},
-                    selectedProductChoice: "",
-                    emptyItem() {
-                        return {
-                            id: null,
-                            product_id: "",
-                            customer_id: "",
-                            product_code: "",
-                            product_name: "",
-                            lot_no: "",
-                            po_no: "",
-                            batch_no: "",
-                            customer_name: "",
-                            defect_quantity: 0,
-                            defect_unit_name: "",
-                            total_quantity: 1,
-                            total_unit_name: "",
-                            unit_name: "",
-                            problem_description: "",
-                        };
-                    },
-                    selectProduct(value) {
-                        const previousProductId = this.itemDraft.product_id;
-                        const product = this.products.find((option) => String(option.id) === String(value));
-                        this.selectedProductChoice = value || "";
-                        this.itemDraft.product_id = value || null;
-                        if (product) {
-                            this.itemDraft.product_code = product.code;
-                            this.itemDraft.product_name = product.name;
-                        } else if (previousProductId || !this.itemDraft.id) {
-                            this.itemDraft.product_code = "";
-                            this.itemDraft.product_name = "";
-                        }
-                    },
-                    addItem() {
-                        if (this.items.length >= 50) return;
-                        this.editingIndex = null;
-                        this.itemDraft = this.emptyItem();
-                        this.selectedProductChoice = "";
-                        this.$nextTick(() => {
-                            this.$refs.itemDialog.showModal();
-                            this.itemDialogOpen = true;
-                        });
-                    },
-                    editItem(index) {
-                        this.editingIndex = index;
-                        this.itemDraft = { ...this.items[index] };
-                        this.selectedProductChoice = this.products.some((product) => String(product.id) === String(this.itemDraft.product_id))
-                            ? this.itemDraft.product_id
-                            : "";
-                        this.$nextTick(() => {
-                            this.$refs.itemDialog.showModal();
-                            this.itemDialogOpen = true;
-                        });
-                    },
-                    saveItem() {
-                        if (!this.$refs.itemEditor.checkValidity()) {
-                            this.$refs.itemEditor.reportValidity();
-                            return;
-                        }
-
-                        const savedItem = { ...this.itemDraft };
-
-                        if (this.editingIndex === null) {
-                            this.items.push(savedItem);
-                        } else {
-                            this.items[this.editingIndex] = savedItem;
-                        }
-
-                        this.$refs.itemDialog.close();
-                        this.itemDialogOpen = false;
-                    },
-                    removeItem(index) {
-                        if (this.items.length > 1) this.items.splice(index, 1);
-                    }
-                }'
-                id="ncr-products"
-                class="ncr-form-items ncr-form-section scroll-mt-28 overflow-hidden rounded-xl border border-slate-200 bg-white">
-
+            <section id="ncr-products" x-data="{
+                defect: {{ \Illuminate\Support\Js::from(old('items.0.defect_quantity', $initialItem['defect_quantity'] ?? '')) }},
+                total: {{ \Illuminate\Support\Js::from(old('items.0.total_quantity', $initialItem['total_quantity'] ?? '')) }},
+                percentage() {
+                    const defect = Number(this.defect);
+                    const total = Number(this.total);
+                    return Number.isFinite(defect) && Number.isFinite(total) && total > 0 ? ((defect / total) * 100).toFixed(2) + '%' : '0.00%';
+                },
+                quantityInvalid() {
+                    const defect = Number(this.defect);
+                    const total = Number(this.total);
+                    return this.defect !== '' && this.total !== '' && Number.isFinite(defect) && Number.isFinite(total) && total > 0 && defect > total;
+                }
+            }" class="ncr-form-items ncr-form-section scroll-mt-28 overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div class="ncr-form-items__header border-b border-slate-200 px-3 py-3 sm:px-4">
-
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <h2 class="text-base font-bold text-slate-900 sm:text-lg">
-                                รายการสินค้าและรายละเอียดที่พบ
-                            </h2>
-
-                            <p class="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
-                                เลือกสินค้าและกรอกจำนวนที่พบในแต่ละรายการ พร้อมเพิ่มรายละเอียดความผิดปกติ
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            x-on:click="addItem()"
-                            x-bind:disabled="items.length >= 50"
-                            x-bind:aria-disabled="items.length >= 50"
-                            class="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50">
-                            + เพิ่มรายการสินค้า
-                        </button>
-                    </div>
-
+                    <h2 id="ncr-items-heading" class="text-base font-bold text-slate-900 sm:text-lg">รายการสินค้าและรายละเอียดที่พบ</h2>
+                    <p class="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">กรอกข้อมูลสินค้าและจำนวนที่พบ พร้อมรายละเอียดความผิดปกติ</p>
                 </div>
-
-
-                <div class="ncr-form-items__body bg-slate-50/70 p-2 sm:p-3">
-
-                    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                        <table class="ncr-items-table w-full border-collapse text-left text-sm">
-                            <caption class="sr-only">รายการผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนดใน NCR</caption>
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th scope="col" class="w-16 px-2 py-3 text-center font-semibold text-slate-700">รายการ</th>
-                                    <th scope="col" class="px-3 py-3 font-semibold text-slate-700">สินค้า</th>
-                                    <th scope="col" class="hidden px-3 py-3 font-semibold text-slate-700 md:table-cell">เลขอ้างอิง</th>
-                                    <th scope="col" class="px-3 py-3 font-semibold text-slate-700">จำนวนที่พบ</th>
-                                    <th scope="col" class="hidden px-3 py-3 text-center font-semibold text-slate-700 sm:table-cell">ร้อยละ</th>
-                                    <th scope="col" class="w-36 px-3 py-3 text-center font-semibold text-slate-700">จัดการ</th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-slate-200">
-                                <tr x-show="items.length === 0">
-                                    <td colspan="6" class="px-4 py-10 text-center">
-                                        <p class="font-semibold text-slate-700">ยังไม่มีรายการสินค้า</p>
-                                        <p class="mt-1 text-sm text-slate-500">เลือก “เพิ่มรายการสินค้า” แล้วกรอกสินค้าและจำนวนที่พบ</p>
-                                    </td>
-                                </tr>
-                                <template
-                                    x-for="(item, index) in items"
-                                    :key="index">
-
-                                    <tr class="align-middle hover:bg-slate-50/70">
-                                        <th scope="row" class="px-2 py-3 text-center font-semibold text-slate-700" x-text="index + 1"></th>
-                                        <td class="px-3 py-3">
-                                            <p class="font-semibold text-slate-900" x-text="item.product_name || 'ยังไม่ได้ระบุชื่อสินค้า'"></p>
-                                            <p class="mt-1 text-xs text-slate-500" x-text="item.product_code || 'ไม่มีรหัสสินค้า'"></p>
-                                        </td>
-                                        <td class="hidden px-3 py-3 text-slate-600 md:table-cell">
-                                            <p x-text="item.lot_no ? 'Lot: ' + item.lot_no : 'Lot: -'"></p>
-                                            <p class="mt-1 text-xs" x-text="[item.po_no && 'PO: ' + item.po_no, item.batch_no && 'Batch: ' + item.batch_no].filter(Boolean).join(' · ') || 'PO / Batch: -'"></p>
-                                        </td>
-                                        <td class="px-3 py-3 text-slate-700">
-                                            <span class="font-semibold" x-text="item.defect_quantity"></span>
-                                            <span x-text="item.defect_unit_name || ''"></span>
-                                            <p class="mt-1 text-xs text-slate-500" x-text="'จาก ' + item.total_quantity + (item.total_unit_name ? ' ' + item.total_unit_name : '')"></p>
-                                        </td>
-                                        <td class="hidden px-3 py-3 text-center font-semibold text-slate-700 sm:table-cell"
-                                            x-text="Number(item.total_quantity) > 0 ? ((Number(item.defect_quantity) / Number(item.total_quantity)) * 100).toFixed(2) + '%' : '-'">-</td>
-                                        <td class="px-3 py-3 text-center">
-                                            <div class="flex flex-wrap items-center justify-center gap-1">
-                                                <button type="button" x-on:click="editItem(index)"
-                                                    :aria-label="'แก้ไขรายการ ' + (index + 1)"
-                                                    class="rounded-md px-2 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1">
-                                                    แก้ไข
-                                                </button>
-                                            <button
-                                                type="button"
-                                                x-show="items.length > 1"
-                                                x-cloak
-                                                x-on:click="removeItem(index)"
-                                                :aria-label="'ลบรายการ ' + (index + 1)"
-                                                class="rounded-md px-2 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1">
-                                                ลบรายการ
-                                            </button>
-                                            </div>
-                                            <input type="hidden" :name="`items[${index}][item_id]`" :value="item.id">
-                                            <input type="hidden" :name="`items[${index}][product_id]`" :value="item.product_id">
-                                            <input type="hidden" :name="`items[${index}][customer_id]`" :value="item.customer_id">
-                                            <input type="hidden" :name="`items[${index}][product_code]`" :value="item.product_code">
-                                            <input type="hidden" :name="`items[${index}][product_name]`" :value="item.product_name">
-                                            <input type="hidden" :name="`items[${index}][lot_no]`" :value="item.lot_no">
-                                            <input type="hidden" :name="`items[${index}][po_no]`" :value="item.po_no">
-                                            <input type="hidden" :name="`items[${index}][batch_no]`" :value="item.batch_no">
-                                            <input type="hidden" :name="`items[${index}][customer_name]`" :value="item.customer_name">
-                                            <input type="hidden" :name="`items[${index}][defect_quantity]`" :value="item.defect_quantity">
-                                            <input type="hidden" :name="`items[${index}][defect_unit_name]`" :value="item.defect_unit_name">
-                                            <input type="hidden" :name="`items[${index}][total_quantity]`" :value="item.total_quantity">
-                                            <input type="hidden" :name="`items[${index}][total_unit_name]`" :value="item.total_unit_name">
-                                            <input type="hidden" :name="`items[${index}][unit_name]`" :value="item.unit_name">
-                                            <input type="hidden" :name="`items[${index}][problem_description]`" :value="item.problem_description">
-                                        </td>
-                                    </tr>
-
-                                </template>
-                            </tbody>
-                        </table>
+                <div class="grid grid-cols-1 gap-4 p-3 sm:grid-cols-2 lg:grid-cols-4 sm:p-4">
+                    <input type="hidden" name="items[0][item_id]" value="{{ old('items.0.item_id', $initialItem['id'] ?? '') }}">
+                    <label class="block text-sm font-semibold text-slate-700">Lot No.
+                        <input type="text" name="items[0][lot_no]" maxlength="255" value="{{ old('items.0.lot_no', $initialItem['lot_no'] ?? '') }}" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('items.0.lot_no') <span class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                    </label>
+                    <label class="block text-sm font-semibold text-slate-700">PO No.
+                        <input type="text" name="items[0][po_no]" maxlength="255" value="{{ old('items.0.po_no', $initialItem['po_no'] ?? '') }}" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('items.0.po_no') <span class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                    </label>
+                    <label class="block text-sm font-semibold text-slate-700">Batch No.
+                        <input type="text" name="items[0][batch_no]" maxlength="255" value="{{ old('items.0.batch_no', $initialItem['batch_no'] ?? '') }}" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('items.0.batch_no') <span class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                    </label>
+                    <label class="block text-sm font-semibold text-slate-700">จำนวนที่พบ <span class="text-red-600" aria-hidden="true">*</span>
+                        <input type="number" name="items[0][defect_quantity]" step="0.0001" min="0" max="99999999999999.9999" x-bind:max="Number(total) > 0 ? total : 99999999999999.9999" required oninvalid="this.setCustomValidity('กรุณากรอกจำนวนที่พบเป็นตัวเลขไม่ติดลบและไม่เกินจำนวนทั้งหมด')" oninput="this.setCustomValidity('')" x-model="defect" value="{{ old('items.0.defect_quantity', $initialItem['defect_quantity'] ?? '') }}" x-bind:aria-invalid="quantityInvalid() ? 'true' : '{{ $errors->has('items.0.defect_quantity') ? 'true' : 'false' }}'" aria-describedby="defect-quantity-client-error @if($errors->has('items.0.defect_quantity')) defect-quantity-error @endif" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('items.0.defect_quantity') <span id="defect-quantity-error" class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                        <span id="defect-quantity-client-error" x-cloak x-show="quantityInvalid()" class="mt-1 block text-xs text-red-600">จำนวนที่พบต้องไม่มากกว่าจำนวนทั้งหมด</span>
+                    </label>
+                    <label class="block text-sm font-semibold text-slate-700">หน่วยนับที่พบ
+                        <select name="items[0][defect_unit_name]" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">เลือกหน่วยนับ</option>
+                            @foreach($units as $unit)<option value="{{ $unit->code }}" {{ (string) old('items.0.defect_unit_name', $initialItem['defect_unit_name'] ?? $initialItem['unit_name'] ?? '') === (string) $unit->code ? 'selected' : '' }}>{{ $unit->name_th }} ({{ $unit->code }})</option>@endforeach
+                        </select>
+                        @error('items.0.defect_unit_name') <span class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                    </label>
+                    <label class="block text-sm font-semibold text-slate-700">จำนวนทั้งหมด <span class="text-red-600" aria-hidden="true">*</span>
+                        <input type="number" name="items[0][total_quantity]" step="0.0001" min="0.0001" max="99999999999999.9999" required oninvalid="this.setCustomValidity('กรุณากรอกจำนวนทั้งหมดเป็นตัวเลขมากกว่า 0')" oninput="this.setCustomValidity('')" x-model="total" value="{{ old('items.0.total_quantity', $initialItem['total_quantity'] ?? '') }}" aria-invalid="{{ $errors->has('items.0.total_quantity') ? 'true' : 'false' }}" @if($errors->has('items.0.total_quantity')) aria-describedby="total-quantity-error" @endif class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @error('items.0.total_quantity') <span id="total-quantity-error" class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                    </label>
+                    <label class="block text-sm font-semibold text-slate-700">หน่วยนับทั้งหมด
+                        <select name="items[0][total_unit_name]" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">เลือกหน่วยนับ</option>
+                            @foreach($units as $unit)<option value="{{ $unit->code }}" {{ (string) old('items.0.total_unit_name', $initialItem['total_unit_name'] ?? $initialItem['unit_name'] ?? '') === (string) $unit->code ? 'selected' : '' }}>{{ $unit->name_th }} ({{ $unit->code }})</option>@endforeach
+                        </select>
+                        @error('items.0.total_unit_name') <span class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                    </label>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p class="text-sm font-semibold text-slate-700">ร้อยละที่พบ</p>
+                        <output class="mt-2 block text-lg font-bold text-indigo-700" aria-live="polite" x-text="percentage()">0.00%</output>
                     </div>
-
-                    <p class="mt-2 px-1 text-xs leading-5 text-slate-500">
-                        เลือก “เพิ่มรายการสินค้า” เพื่อกรอกข้อมูล หรือ “แก้ไข” เพื่อปรับรายการเดิม เพิ่มได้สูงสุด 50 รายการ
-                    </p>
-
+                    <div class="sm:col-span-2 lg:col-span-4">
+                        <x-label for="item_problem_description" class="text-sm font-semibold text-slate-700">รายละเอียดความผิดปกติ</x-label>
+                        <textarea id="item_problem_description" name="items[0][problem_description]" rows="4" maxlength="5000" aria-invalid="{{ $errors->has('items.0.problem_description') ? 'true' : 'false' }}" @if($errors->has('items.0.problem_description')) aria-describedby="item-problem-description-error" @endif class="mt-2 block w-full resize-y rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('items.0.problem_description', $initialItem['problem_description'] ?? '') }}</textarea>
+                        @error('items.0.problem_description') <span id="item-problem-description-error" class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
+                    </div>
+                    @error('items') <p class="text-sm text-red-600 sm:col-span-2 lg:col-span-4" role="alert">{{ $message }}</p> @enderror
                 </div>
-
-                <dialog x-ref="itemDialog" x-on:close="itemDialogOpen = false" closedby="any"
-                    class="m-auto w-[calc(100%_-_2rem)] max-w-4xl overflow-hidden rounded-2xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/55"
-                    aria-labelledby="ncr-item-dialog-title">
-                    <fieldset x-ref="itemEditor" disabled x-bind:disabled="!itemDialogOpen" class="m-0 max-h-[calc(100vh_-_2rem)] min-w-0 overflow-y-auto border-0 p-0">
-                        <div class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
-                            <div>
-                                <p class="text-xs font-bold uppercase tracking-wider text-indigo-600">รายละเอียดสินค้า</p>
-                                <h3 id="ncr-item-dialog-title" class="mt-1 text-lg font-bold text-slate-900"
-                                    x-text="editingIndex === null ? 'เพิ่มรายการสินค้า' : 'แก้ไขรายการสินค้า ' + (editingIndex + 1)"></h3>
-                            </div>
-                            <button type="button" x-on:click="$refs.itemDialog.close()" aria-label="ปิดหน้าต่าง"
-                                class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <span aria-hidden="true" class="text-xl leading-none">&times;</span>
-                            </button>
-                        </div>
-
-                        <div class="grid grid-cols-1 gap-4 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
-                            <div class="sm:col-span-2 lg:col-span-3">
-                                <label for="item-product-reference" class="block text-sm font-semibold text-slate-700">สินค้า <span class="text-red-600">*</span></label>
-                                <select id="item-product-reference" x-model="selectedProductChoice" x-on:change="selectProduct($event.target.value)" x-bind:required="!itemDraft.product_id && (!itemDraft.id || !itemDraft.product_name)" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="" x-text="itemDraft.id && itemDraft.product_id && !products.some((product) => String(product.id) === String(itemDraft.product_id)) ? 'สินค้าเดิมปิดใช้งาน (เก็บข้อมูลเดิม)' : (itemDraft.id && itemDraft.product_name ? 'ค่าเดิมที่ยังไม่ผูกทะเบียน' : 'เลือกสินค้า')"></option>
-                                    @foreach($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->code }} — {{ $product->name_th }}</option>
-                                    @endforeach
-                                </select>
-                                <p x-show="itemDraft.product_name" x-text="itemDraft.product_id ? (products.some((product) => String(product.id) === String(itemDraft.product_id)) ? 'ข้อมูลจากทะเบียน: ' : 'สินค้าเดิมปิดใช้งาน (เก็บข้อมูลเดิม): ') + itemDraft.product_code + ' — ' + itemDraft.product_name : 'ข้อมูลสินค้าเดิม: ' + itemDraft.product_code + ' — ' + itemDraft.product_name" class="mt-1 text-xs text-slate-500"></p>
-                            </div>
-                            <label class="block text-sm font-semibold text-slate-700">Lot No.
-                                <input type="text" x-model="itemDraft.lot_no" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">PO No.
-                                <input type="text" x-model="itemDraft.po_no" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">Batch No.
-                                <input type="text" x-model="itemDraft.batch_no" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">จำนวนที่พบ <span class="text-red-600">*</span>
-                                <input type="number" step="0.0001" min="0" x-model="itemDraft.defect_quantity" required class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">หน่วยนับที่พบ
-                                <select x-model="itemDraft.defect_unit_name" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">เลือกหน่วยนับ</option>
-                                    @foreach($units as $x)
-                                    <option value="{{ $x->code }}">{{ $x->name_th }} ({{ $x->code }})</option>
-                                    @endforeach
-                                </select>
-                            </label>
-                            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                <p class="text-sm font-semibold text-slate-700">สัดส่วนที่พบ</p>
-                                <output class="mt-2 block text-lg font-bold text-indigo-700"
-                                    x-text="Number(itemDraft.total_quantity) > 0 ? ((Number(itemDraft.defect_quantity) / Number(itemDraft.total_quantity)) * 100).toFixed(2) + '%' : '-'">-</output>
-                            </div>
-                            <label class="block text-sm font-semibold text-slate-700">จำนวนทั้งหมด <span class="text-red-600">*</span>
-                                <input type="number" step="0.0001" min="0.0001" x-model="itemDraft.total_quantity" required class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">หน่วยนับทั้งหมด
-                                <select x-model="itemDraft.total_unit_name" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">เลือกหน่วยนับ</option>
-                                    @foreach($units as $x)
-                                    <option value="{{ $x->code }}">{{ $x->name_th }} ({{ $x->code }})</option>
-                                    @endforeach
-                                </select>
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700 sm:col-span-2 lg:col-span-3">รายละเอียดความผิดปกติ
-                                <textarea x-model="itemDraft.problem_description" rows="4" class="mt-2 block w-full resize-y rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                            </label>
-                        </div>
-
-                        <div class="sticky bottom-0 flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
-                            <button type="button" x-on:click="$refs.itemDialog.close()"
-                                class="min-h-[42px] rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
-                                ยกเลิก
-                            </button>
-                            <button type="button" x-on:click="saveItem()"
-                                class="min-h-[42px] rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                                บันทึกรายการ
-                            </button>
-                        </div>
-                    </fieldset>
-                </dialog>
             </section>
 
-
-            {{-- รายละเอียดและไฟล์ --}}
             <div id="ncr-evidence" class="ncr-form-section ncr-form-section--compact scroll-mt-28 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
 
                 <div class="ncr-description-grid space-y-4">
 
                     <div>
-                        <x-label
+                        <x-label for="problem_description"
                             value="สรุปเหตุการณ์ NCR (ภาพรวม)"
                             class="text-sm font-semibold text-slate-700" />
                         <p class="mt-1 text-xs leading-5 text-slate-500">ระบุว่าเกิดอะไรขึ้น เมื่อใดและที่ไหน รวมถึงผลกระทบที่พบ ส่วนรายละเอียดเฉพาะสินค้าให้กรอกในแต่ละรายการ</p>
 
                         <textarea
+                            id="problem_description"
                             name="problem_description"
                             rows="5"
+                            aria-invalid="{{ $errors->has('problem_description') ? 'true' : 'false' }}"
+                            @if($errors->has('problem_description')) aria-describedby="problem-description-error" @endif
                             class="mt-2 block w-full resize-y rounded-lg border border-slate-300 bg-white text-sm shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500">{{ $v('problem_description') }}</textarea>
+                        @error('problem_description') <p id="problem-description-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                     </div>
 
 
                     <div class="border-t border-slate-200 pt-3">
-                        <x-label
+                        <x-label for="attachments"
                             value="ไฟล์แนบ"
                             class="text-sm font-semibold text-slate-700" />
                         <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ PDF, JPG/JPEG/PNG, XLS/XLSX และ DOCX · ไฟล์ละไม่เกิน 10 MB</p>
 
                         <input
+                            id="attachments"
                             type="file"
                             name="attachments[]"
                             multiple
                             accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.docx"
+                            aria-invalid="{{ $errors->has('attachments.0') ? 'true' : 'false' }}"
+                            @if($errors->has('attachments.0')) aria-describedby="attachments-error" @endif
                             class="mt-2 block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-600 shadow-sm
                                 file:mr-4 file:border-0 file:border-r file:border-slate-200
                                 file:bg-slate-50 file:px-4 file:py-3
                                 file:text-sm file:font-semibold file:text-slate-700
                                 hover:file:bg-slate-100
                                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        @error('attachments.0') <p id="attachments-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                     </div>
 
                 </div>
@@ -761,7 +513,7 @@
             {{-- Actions --}}
             <div class="ncr-form-actions flex flex-col-reverse gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3">
 
-                <p class="hidden text-sm text-slate-500 sm:block">กรอกช่องที่มี * และเพิ่มรายการสินค้าอย่างน้อย 1 รายการก่อนบันทึกเป็นฉบับร่าง</p>
+                <p class="text-sm text-slate-500">กรอกช่องที่มี * ให้ครบก่อนบันทึกเป็นฉบับร่าง</p>
 
                 <div class="flex flex-col-reverse gap-2 sm:flex-row">
 

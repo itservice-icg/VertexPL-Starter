@@ -120,3 +120,5 @@ yarn-error.log
 .codex
 *.TXT
 DESIGN.md
+/screenshots
+AGENTS.md

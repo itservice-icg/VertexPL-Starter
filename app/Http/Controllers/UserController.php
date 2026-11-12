@@ -45,6 +45,7 @@ class UserController extends Controller
         return view('users.index', [
             'users' => $users,
             'roles' => Role::query()->orderBy('name')->get(),
+            'assignableRoles' => $this->assignableRoles($request->user()),
             'departments' => Department::query()->where('is_active', true)->orderBy('code')->get(),
             'departmentRoles' => DepartmentRole::query()->orderBy('name_th')->get(),
             'filters' => $filters,
@@ -55,6 +56,7 @@ class UserController extends Controller
     {
         return view('users.create', [
             'roles' => Role::query()->orderBy('name')->get(),
+            'assignableRoles' => $this->assignableRoles(request()->user()),
             'departments' => Department::query()->where('is_active', true)->orderBy('code')->get(),
             'departmentRoles' => DepartmentRole::query()->orderBy('name_th')->get(),
         ]);
@@ -105,6 +107,7 @@ class UserController extends Controller
         return view('users.edit', [
             'user' => $user,
             'roles' => Role::query()->orderBy('name')->get(),
+            'assignableRoles' => $this->assignableRoles(request()->user()),
             'departments' => Department::query()
                 ->where(function ($query) use ($user) {
                     $query->where('is_active', true)
@@ -173,6 +176,14 @@ class UserController extends Controller
         return redirect()
             ->route('users.index')
             ->with('success', 'แก้ไขผู้ใช้งานเรียบร้อยแล้ว');
+    }
+
+    private function assignableRoles(User $actor)
+    {
+        return Role::query()
+            ->when(! $actor->can('permissions.manage'), fn ($query) => $query->where('name', '!=', 'Super Admin'))
+            ->orderBy('name')
+            ->get();
     }
 
     public function destroy(Request $request, User $user)

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Department;
 use App\Models\DispositionType;
+use App\Models\Customer;
 use App\Models\NcrCorrectiveAction;
 use App\Models\NcrCorrectiveActionCycle;
 use App\Models\NcrDisposition;
@@ -29,12 +30,14 @@ class NcrFieldPreservationTest extends TestCase
     private SeverityLevel $severity;
     private DispositionType $dispositionType;
     private Product $product;
+    private Customer $customer;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(NcrFoundationSeeder::class);
         $this->product = Product::create(['code' => 'P001', 'name_th' => 'สินค้า A', 'is_active' => true]);
+        $this->customer = Customer::create(['code' => 'C001', 'name_th' => 'ลูกค้าทดสอบ', 'is_active' => true]);
         $this->department = Department::create(['code' => 'QA', 'name_th' => 'ประกันคุณภาพ', 'is_active' => true]);
         $this->problemType = ProblemType::where('code', 'RAW_MATERIAL')->firstOrFail();
         $this->severity = SeverityLevel::where('code', 'MEDIUM')->firstOrFail();
@@ -67,7 +70,7 @@ class NcrFieldPreservationTest extends TestCase
 
         $this->actingAs($reporter)->get(route('ncr.show', $report))
             ->assertOk()
-            ->assertSee('AI / UP')
+            ->assertSee('<dd>AI</dd>', false)
             ->assertSee('ชื่อสามัญเดิม')
             ->assertDontSee('เลขที่อ้างอิง')
             ->assertDontSee('เครื่องจักร/กระบวนการ')
@@ -91,7 +94,8 @@ class NcrFieldPreservationTest extends TestCase
         $this->actingAs($reporter)
             ->get(route('ncr.create'))
             ->assertOk()
-            ->assertSee('<option value="KG">กิโลกรัม (KG)</option>', false);
+            ->assertSee('value="KG"', false)
+            ->assertSee('กิโลกรัม (KG)');
 
         $payload = $this->reportPayload('AI');
         $payload['items'][0]['defect_unit_name'] = 'kilogram';
@@ -200,7 +204,8 @@ class NcrFieldPreservationTest extends TestCase
             'version_no' => $report->version_no,
         ])->assertRedirect();
 
-        $approver = $this->user(['ncr.action.approve']);
+        $approver = $this->user(['ncr.action.manage']);
+        $approver->update(['department_role' => 'DEPARTMENT_HEAD']);
         $report->refresh();
         $this->actingAs($approver)->post(route('ncr.corrective-actions.decision', $report), [
             'version_no' => $report->version_no,
@@ -225,7 +230,7 @@ class NcrFieldPreservationTest extends TestCase
         $this->actingAs($responsible)->get(route('ncr.show', $report))
             ->assertOk()
             ->assertSee('วันที่รับทราบ')
-            ->assertSee($report->correctiveActions()->firstOrFail()->responsible_acknowledged_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i'))
+            ->assertSee(\App\Support\ThaiDateFormatter::formatDateTime($report->correctiveActions()->firstOrFail()->responsible_acknowledged_at, config('app.display_timezone')))
             ->assertSee('FM-DQA-06 Sign-off Trace')
             ->assertSee('DEPUT_MD_FACTORY_ACK');
     }
@@ -273,7 +278,7 @@ class NcrFieldPreservationTest extends TestCase
         ]);
         $this->actingAs($actor)->get(route('ncr.show', $report))
             ->assertOk()
-            ->assertSee('ติดตามครั้งถัดไป: 28/08/2026')
+            ->assertSee('ติดตามครั้งถัดไป: 28/08/2569')
             ->assertSee('ผลรอบสามยืนยันต่อเนื่อง')
             ->assertSee('QA Sign-off / ผู้ปิด')
             ->assertDontSee('บันทึก QA Follow-up');
@@ -303,6 +308,7 @@ class NcrFieldPreservationTest extends TestCase
             'found_time' => '09:15',
             'problem_type_id' => $this->problemType->id,
             'severity_level_id' => $this->severity->id,
+            'customer_id' => $this->customer->id,
             'company_name' => 'VertexPL',
             'generic_name' => 'ชื่อสามัญเดิม',
             'found_location' => 'คลังสินค้า',

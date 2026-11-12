@@ -25,7 +25,13 @@ class SaveNcrReportRequest extends FormRequest
         }, []);
         $normalizeUnit = static fn ($value) => $value === null || $value === '' ? null : ($unitCodes[$value] ?? $value);
 
-        $items = collect((array) $this->input('items', []))->map(function (array $item) use ($normalizeUnit): array {
+        $items = collect((array) $this->input('items', []))->map(function ($item) use ($normalizeUnit) {
+            // Leave malformed entries untouched so Laravel validation can reject
+            // them instead of triggering a TypeError before validation runs.
+            if (! is_array($item)) {
+                return $item;
+            }
+
             $legacyUnit = $normalizeUnit($item['unit_name'] ?? null);
             $defectUnit = $normalizeUnit($item['defect_unit_name'] ?? $legacyUnit);
             $totalUnit = $normalizeUnit($item['total_unit_name'] ?? $legacyUnit);
@@ -33,18 +39,10 @@ class SaveNcrReportRequest extends FormRequest
             $item['defect_unit_name'] = $defectUnit;
             $item['total_unit_name'] = $totalUnit;
             $item['unit_name'] = $defectUnit === $totalUnit ? $defectUnit : null;
+            unset($item['customer_id'], $item['customer_name']);
 
             return $item;
         })->values()->all();
-
-        if ($this->exists('company_customer_id') && $this->input('company_customer_id') !== 'legacy') {
-            $customerId = $this->filled('company_customer_id') ? $this->input('company_customer_id') : null;
-            $items = array_map(function (array $item) use ($customerId): array {
-                $item['customer_id'] = $customerId;
-
-                return $item;
-            }, $items);
-        }
 
         $scopeInput = $this->input('legacy_form_scope_code');
         $rawScopeCodes = $this->has('legacy_form_scope_codes')
@@ -62,16 +60,21 @@ class SaveNcrReportRequest extends FormRequest
             $this->merge(['severity_level_id' => $report->severity_level_id]);
         }
 
+        $customerId = $this->filled('customer_id') ? $this->input('customer_id') : null;
+        $existingCustomerId = $report instanceof NcrReport ? $report->customer_id : null;
+        $selectedCustomerName = $customerId
+            ? Customer::query()->where('is_active', true)->whereNull('deleted_at')->whereKey($customerId)->value('name_th')
+            : null;
+        $companyName = $customerId
+            ? ($report instanceof NcrReport && (int) $customerId === (int) $existingCustomerId
+                ? $report->company_name
+                : $selectedCustomerName)
+            : null;
+
         $this->merge([
             'problem_description' => $this->input('problem_description') ?? '',
             'items' => $items,
-            'company_name' => $this->filled('company_customer_id')
-                ? Customer::query()
-                    ->where('is_active', true)
-                    ->whereNull('deleted_at')
-                    ->whereKey($this->input('company_customer_id'))
-                    ->value('name_th')
-                : ($this->input('reference_customer_name') ?: $this->input('company_name')),
+            'company_name' => $companyName,
             'legacy_form_scope_code' => $scopeCodes ? implode(',', $scopeCodes) : null,
         ]);
     }
@@ -84,30 +87,8 @@ class SaveNcrReportRequest extends FormRequest
             'legacy_form_scope_codes'=>['nullable','array','max:1'],
             'legacy_form_scope_codes.*'=>['required', $this->formScopeRule(), 'distinct'],
             'reporter_department_id'=>['nullable','exists:departments,id'],'related_department_id'=>['nullable','exists:departments,id'],'problem_type_id'=>['required','exists:problem_types,id'],'severity_level_id'=>['nullable','exists:severity_levels,id'],
+            'customer_id'=>['required','integer','exists:customers,id'],
             'company_name'=>['nullable','string','max:255'],
-            'reference_product_code'=>['nullable','string','max:255'],
-            'reference_product_name'=>['nullable','string','max:255'],
-            'reference_customer_name'=>['nullable','string','max:255'],
-            'company_customer_id'=>['nullable',function ($attribute, $value, $fail) {
-                if ($value === null || $value === '') {
-                    return;
-                }
-
-                if ($value === 'legacy') {
-                    $report = $this->route('ncr');
-                    if ($report instanceof NcrReport && $this->input('company_name') === $report->company_name) {
-                        return;
-                    }
-                } elseif (filter_var($value, FILTER_VALIDATE_INT) !== false && Customer::query()
-                    ->whereKey($value)
-                    ->where('is_active', true)
-                    ->whereNull('deleted_at')
-                    ->exists()) {
-                    return;
-                }
-
-                $fail('กรุณาเลือกลูกค้าที่เปิดใช้งานจาก NCR Master Data');
-            }],
             'generic_name'=>['nullable','string','max:255'],'supplier_id'=>['nullable','integer','exists:suppliers,id'],'supplier_name'=>['nullable','string','max:255'],'production_date'=>['nullable','date'],'found_location'=>['nullable','string','max:255'],
             'problem_description'=>['nullable','string','max:10000'],
             'initial_disposition_type_id'=>['nullable','exists:disposition_types,id'],
@@ -115,14 +96,14 @@ class SaveNcrReportRequest extends FormRequest
             'initial_responsible_department_id'=>['nullable','exists:departments,id'],
             'initial_proposed_due_date'=>['nullable','date'],
             'version_no'=>['nullable','integer','min:1'],'attachments.*'=>['file','max:10240','mimes:pdf,jpg,jpeg,png,xlsx,xls,docx'],
-            'items'=>['required','array','min:1','max:50'],
-            'items.*.item_id'=>['nullable','integer','exists:ncr_items,id'],'items.*.product_id'=>['nullable','integer','exists:products,id'],'items.*.customer_id'=>['nullable','integer','exists:customers,id'],
-            'items.*.product_code'=>['nullable','string','max:255'],'items.*.product_name'=>['nullable','string','max:255'],
-            'items.*.lot_no'=>['nullable','string','max:255'],'items.*.po_no'=>['nullable','string','max:255'],'items.*.batch_no'=>['nullable','string','max:255'],
-            'items.*.customer_name'=>['nullable','string','max:255'],'items.*.defect_quantity'=>['required','numeric','min:0'],
-            'items.*.total_quantity'=>['required','numeric','gt:0'],'items.*.unit_name'=>['nullable',Rule::exists('units','code')],
-            'items.*.defect_unit_name'=>['nullable',Rule::exists('units','code')],'items.*.total_unit_name'=>['nullable',Rule::exists('units','code')],
-            'items.*.problem_description'=>['nullable','string','max:5000'],
+            'items'=>['required','array','size:1'],
+            'items.0.item_id'=>['nullable','integer','exists:ncr_items,id'],'items.0.product_id'=>['nullable','integer','exists:products,id'],
+            'items.0.product_code'=>['nullable','string','max:255'],'items.0.product_name'=>['required','string','max:255'],
+            'items.0.lot_no'=>['nullable','string','max:255'],'items.0.po_no'=>['nullable','string','max:255'],'items.0.batch_no'=>['nullable','string','max:255'],
+            'items.0.defect_quantity'=>['required','numeric','regex:/^\d{1,14}(?:\.\d{1,4})?$/','min:0','max:99999999999999.9999'],
+            'items.0.total_quantity'=>['required','numeric','regex:/^\d{1,14}(?:\.\d{1,4})?$/','gt:0','max:99999999999999.9999'],'items.0.unit_name'=>['nullable',Rule::exists('units','code')],
+            'items.0.defect_unit_name'=>['nullable',Rule::exists('units','code')],'items.0.total_unit_name'=>['nullable',Rule::exists('units','code')],
+            'items.0.problem_description'=>['nullable','string','max:5000'],
         ];
     }
 
@@ -143,21 +124,19 @@ class SaveNcrReportRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            if ($this->filled('company_customer_id') && $this->input('company_customer_id') !== 'legacy' && $this->filled('reference_customer_name')) {
-                $customerName = Customer::query()
-                    ->where('is_active', true)
-                    ->whereNull('deleted_at')
-                    ->whereKey($this->input('company_customer_id'))
-                    ->value('name_th');
-
-                if ($customerName !== $this->input('reference_customer_name')) {
-                    $validator->errors()->add('reference_customer_name', 'ชื่อลูกค้าต้องตรงกับลูกค้าที่เลือกจาก Master');
-                }
-            }
-
             $ncr = $this->route('ncr');
             $existingItems = $ncr instanceof NcrReport ? $ncr->items()->get()->keyBy('id') : collect();
             $existingSupplierId = $ncr instanceof NcrReport ? $ncr->supplier_id : null;
+            $existingCustomerId = $ncr instanceof NcrReport ? $ncr->customer_id : null;
+
+            if ($this->filled('customer_id')) {
+                $customer = DB::table('customers')->where('id', $this->input('customer_id'))->first();
+                $isExistingCustomer = $customer && (int) $existingCustomerId === (int) $customer->id;
+
+                if (! $customer || ((! $customer->is_active || $customer->deleted_at !== null) && ! $isExistingCustomer)) {
+                    $validator->errors()->add('customer_id', 'กรุณาเลือกลูกค้าที่เปิดใช้งานจาก NCR Master Data');
+                }
+            }
 
             if ($this->filled('supplier_id')) {
                 $supplier = DB::table('suppliers')->where('id', $this->input('supplier_id'))->first();
@@ -166,34 +145,45 @@ class SaveNcrReportRequest extends FormRequest
                 }
             }
 
-            foreach ((array) $this->input('items', []) as $index => $item) {
+            $item = (array) data_get($this->input('items', []), '0', []);
+            if ($item) {
                 $existingItem = ! empty($item['item_id']) ? $existingItems->get((int) $item['item_id']) : null;
                 if (! empty($item['item_id']) && ! $existingItem) {
-                    $validator->errors()->add("items.{$index}.item_id", 'ไม่พบรายการสินค้าใน NCR นี้');
+                    $validator->errors()->add('items.0.item_id', 'ไม่พบรายการสินค้าใน NCR นี้');
                 }
 
-                if (empty($item['product_id'])) {
-                    if (! $existingItem || $existingItem->product_id) {
-                        $validator->errors()->add("items.{$index}.product_id", 'กรุณาเลือกสินค้าจากทะเบียนกลาง');
-                    }
-                } else {
+                if (! empty($item['product_id'])) {
                     $product = DB::table('products')->where('id', $item['product_id'])->first();
                     if ($product && ! $product->is_active && (! $existingItem || (int) $existingItem->product_id !== (int) $product->id)) {
-                        $validator->errors()->add("items.{$index}.product_id", 'กรุณาเลือกสินค้าที่เปิดใช้งาน');
-                    }
-                }
-
-                if (! empty($item['customer_id'])) {
-                    $customer = DB::table('customers')->where('id', $item['customer_id'])->first();
-                    if ($customer && ! $customer->is_active && (! $existingItem || (int) $existingItem->customer_id !== (int) $customer->id)) {
-                        $validator->errors()->add("items.{$index}.customer_id", 'กรุณาเลือกลูกค้าที่เปิดใช้งาน');
+                        $validator->errors()->add('items.0.product_id', 'กรุณาเลือกสินค้าที่เปิดใช้งาน');
                     }
                 }
 
                 if (isset($item['defect_quantity'], $item['total_quantity']) && (float) $item['defect_quantity'] > (float) $item['total_quantity']) {
-                    $validator->errors()->add("items.{$index}.defect_quantity", 'จำนวนที่พบต้องไม่เกินจำนวนทั้งหมด');
+                    $validator->errors()->add('items.0.defect_quantity', 'จำนวนที่พบต้องไม่เกินจำนวนทั้งหมด');
                 }
             }
         });
+    }
+
+    public function messages(): array
+    {
+        return [
+            'customer_id.required' => 'กรุณาเลือกลูกค้า',
+            'customer_id.exists' => 'ไม่พบลูกค้าที่เลือก กรุณาเลือกลูกค้าจากทะเบียน',
+            'items.required' => 'กรุณากรอกข้อมูลสินค้า',
+            'items.size' => 'NCR หนึ่งรายการต้องมีสินค้าเพียง 1 รายการ',
+            'items.0.product_name.required' => 'กรุณากรอกชื่อสินค้า',
+            'items.0.defect_quantity.required' => 'กรุณากรอกจำนวนที่พบ',
+            'items.0.defect_quantity.numeric' => 'จำนวนที่พบต้องเป็นตัวเลข',
+            'items.0.defect_quantity.regex' => 'จำนวนที่พบรองรับทศนิยมไม่เกิน 4 ตำแหน่งและไม่เกิน 14 หลัก',
+            'items.0.defect_quantity.min' => 'จำนวนที่พบต้องไม่น้อยกว่า 0',
+            'items.0.defect_quantity.max' => 'จำนวนที่พบเกินขอบเขตที่รองรับ',
+            'items.0.total_quantity.required' => 'กรุณากรอกจำนวนทั้งหมด',
+            'items.0.total_quantity.numeric' => 'จำนวนทั้งหมดต้องเป็นตัวเลข',
+            'items.0.total_quantity.regex' => 'จำนวนทั้งหมดรองรับทศนิยมไม่เกิน 4 ตำแหน่งและไม่เกิน 14 หลัก',
+            'items.0.total_quantity.gt' => 'จำนวนทั้งหมดต้องมากกว่า 0',
+            'items.0.total_quantity.max' => 'จำนวนทั้งหมดเกินขอบเขตที่รองรับ',
+        ];
     }
 }

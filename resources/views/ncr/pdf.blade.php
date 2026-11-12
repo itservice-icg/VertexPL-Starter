@@ -37,7 +37,7 @@
     $genericName = $ncr->generic_name;
     $poNo = optional($item)->po_no;
     $lotNo = optional($item)->lot_no;
-    $customerName = optional($item)->customer_name;
+    $customerName = $ncr->company_name;
 
     $defectQty = optional($item)->defect_quantity;
     $totalQty = optional($item)->total_quantity;

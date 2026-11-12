@@ -58,7 +58,7 @@
                     <label for="{{ $idPrefix }}-role-id" class="mb-1.5 block text-sm font-semibold text-slate-700">Role ระบบ (ชุดสิทธิ์) <span class="text-red-500">*</span></label>
                     <select id="{{ $idPrefix }}-role-id" name="role_id" required aria-describedby="{{ $idPrefix }}-role-id-help" class="block w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">เลือก Role ระบบ</option>
-                        @foreach ($roles as $role)
+                        @foreach (($assignableRoles ?? $roles) as $role)
                             <option value="{{ $role->id }}" {{ (string) $selectedRoleId === (string) $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                         @endforeach
                     </select>

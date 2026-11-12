@@ -45,16 +45,18 @@ class NcrBusinessReferenceTest extends TestCase
         $item = $report->items()->firstOrFail();
         $this->assertSame('P-001', $item->product_code);
         $this->assertSame('สินค้าเดิม', $item->product_name);
-        $this->assertSame('ลูกค้าเดิม', $item->customer_name);
+        $this->assertNull($item->customer_name);
         $this->assertSame('ผู้ขายเดิม', $report->supplier_name);
         $this->assertSame((int) $this->product->id, (int) $item->product_id);
-        $this->assertSame((int) $this->customer->id, (int) $item->customer_id);
+        $this->assertSame((int) $this->customer->id, (int) $report->customer_id);
+        $this->assertNull($item->customer_id);
         $this->assertSame((int) $this->supplier->id, (int) $report->supplier_id);
         $this->actingAs($reporter)->get(route('ncr.edit', $report))
             ->assertOk()
             ->assertSee('P-001')
             ->assertSee('สินค้าเดิม')
-            ->assertSee('name="reference_customer_name"', false)
+            ->assertSee('name="customer_id"', false)
+            ->assertDontSee('name="reference_customer_name"', false)
             ->assertSee('ผู้ขายเดิม');
 
         $this->product->update(['name_th' => 'สินค้าเปลี่ยนชื่อ']);
@@ -66,14 +68,14 @@ class NcrBusinessReferenceTest extends TestCase
         $update['supplier_id'] = $this->supplier->id;
         $update['items'][0]['item_id'] = $item->id;
         $update['items'][0]['product_id'] = $this->product->id;
-        $update['items'][0]['customer_id'] = $this->customer->id;
+        $update['customer_id'] = $this->customer->id;
 
         $this->actingAs($reporter)->put(route('ncr.update', $report), $update)
             ->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame($item->id, $report->fresh()->items()->firstOrFail()->id);
         $this->assertSame('สินค้าเดิม', $report->fresh()->items()->firstOrFail()->product_name);
-        $this->assertSame('ลูกค้าเดิม', $report->fresh()->items()->firstOrFail()->customer_name);
+        $this->assertSame('ลูกค้าเดิม', $report->fresh()->company_name);
         $this->assertSame('ผู้ขายเดิม', $report->fresh()->supplier_name);
 
         $replacementProduct = Product::create(['code' => 'P-002', 'name_th' => 'สินค้าใหม่', 'is_active' => true]);
@@ -82,34 +84,34 @@ class NcrBusinessReferenceTest extends TestCase
         $update['version_no'] = $report->fresh()->version_no;
         $update['supplier_id'] = $replacementSupplier->id;
         $update['items'][0]['product_id'] = $replacementProduct->id;
-        $update['items'][0]['customer_id'] = $replacementCustomer->id;
+        $update['customer_id'] = $replacementCustomer->id;
 
         $this->actingAs($reporter)->put(route('ncr.update', $report), $update)
             ->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame('P-002', $report->fresh()->items()->firstOrFail()->product_code);
         $this->assertSame('สินค้าใหม่', $report->fresh()->items()->firstOrFail()->product_name);
-        $this->assertSame('ลูกค้าใหม่', $report->fresh()->items()->firstOrFail()->customer_name);
+        $this->assertSame('ลูกค้าใหม่', $report->fresh()->company_name);
         $this->assertSame('ผู้ขายใหม่', $report->fresh()->supplier_name);
     }
 
-    public function test_product_is_required_while_customer_and_supplier_are_optional(): void
+    public function test_manual_product_is_allowed_but_customer_is_required_and_supplier_is_optional(): void
     {
         $reporter = $this->user(['ncr.create']);
         $payload = $this->payload();
         unset($payload['supplier_id'], $payload['items'][0]['product_id']);
 
         $this->actingAs($reporter)->post(route('ncr.store'), $payload)
-            ->assertSessionHasErrors('items.0.product_id');
-        $this->assertDatabaseCount('ncr_reports', 0);
-
-        $payload['items'][0]['product_id'] = $this->product->id;
-        unset($payload['items'][0]['customer_id']);
-        $this->actingAs($reporter)->post(route('ncr.store'), $payload)
             ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('ncr_reports', 1);
         $report = NcrReport::firstOrFail();
+        $this->assertNull($report->items()->firstOrFail()->product_id);
+        $this->assertSame($this->customer->id, $report->customer_id);
+
+        $payload['customer_id'] = '';
+        $this->actingAs($reporter)->post(route('ncr.store'), $payload)
+            ->assertSessionHasErrors('customer_id');
         $this->assertNull($report->supplier_id);
-        $this->assertNull($report->items()->firstOrFail()->customer_id);
     }
 
     public function test_reference_masters_require_permission_and_cannot_be_deleted_while_used(): void
@@ -159,12 +161,11 @@ class NcrBusinessReferenceTest extends TestCase
             'problem_description' => 'พบสินค้าที่ไม่เป็นไปตามข้อกำหนด',
             'supplier_id' => $this->supplier->id,
             'supplier_name' => 'ข้อมูลที่ส่งมาเองต้องไม่ทับ snapshot',
+            'customer_id' => $this->customer->id,
             'items' => [[
                 'product_id' => $this->product->id,
                 'product_code' => 'FORGED-CODE',
                 'product_name' => 'ชื่อที่ส่งมาเอง',
-                'customer_id' => $this->customer->id,
-                'customer_name' => 'ลูกค้าที่ส่งมาเอง',
                 'defect_quantity' => 1,
                 'total_quantity' => 10,
                 'defect_unit_name' => 'PCS',

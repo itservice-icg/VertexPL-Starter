@@ -193,6 +193,7 @@ class AuditLogTest extends TestCase
         $this->actingAs($admin)->post(route('users.store'), [
             'name' => 'Managed User',
             'email' => 'managed@example.com',
+            'department_role' => 'MEMBER',
             'role_id' => $role->id,
             'password' => 'InitialPassword!123',
             'password_confirmation' => 'InitialPassword!123',
@@ -204,6 +205,7 @@ class AuditLogTest extends TestCase
         $this->put(route('users.update', $managed), [
             'name' => 'Managed User Updated',
             'email' => 'managed@example.com',
+            'department_role' => 'MEMBER',
             'role_id' => $role->id,
             'password' => 'ChangedPassword!123',
             'password_confirmation' => 'ChangedPassword!123',

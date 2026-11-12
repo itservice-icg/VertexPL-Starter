@@ -30,7 +30,7 @@ class NavigationSecurityTest extends TestCase
             ->get('/dashboard')
             ->assertOk()
             ->assertSee('Dashboard')
-            ->assertDontSee('NCR')
+            ->assertDontSee('href="'.route('ncr.index').'"', false)
             ->assertDontSee('ผู้ใช้งาน')
             ->assertDontSee('หน่วยงาน')
             ->assertDontSee('ตั้งค่าระบบ');
@@ -106,6 +106,21 @@ class NavigationSecurityTest extends TestCase
 
         $this->actingAs($user)
             ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('href="'.route('users.index').'"', false);
+
+        $this->actingAs($user)
+            ->get(route('users.index'))
             ->assertOk();
+    }
+
+    public function test_administrator_role_does_not_bypass_permissions_by_itself()
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::create(['name' => 'Administrator']));
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertForbidden();
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\Customer;
 use App\Models\DispositionType;
 use App\Models\NcrReport;
 use App\Models\ProblemType;
@@ -15,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class NcrPhaseFourTest extends TestCase
@@ -25,6 +27,7 @@ class NcrPhaseFourTest extends TestCase
     private ProblemType $problem;
     private SeverityLevel $severity;
     private DispositionType $dispositionType;
+    private Customer $customer;
 
     protected function setUp(): void
     {
@@ -32,6 +35,7 @@ class NcrPhaseFourTest extends TestCase
         Storage::fake('local');
         Unit::create(['code' => 'PCS', 'name_th' => 'ชิ้น', 'is_active' => true]);
         Product::create(['code' => 'P001', 'name_th' => 'สินค้า A', 'is_active' => true]);
+        $this->customer = Customer::create(['code' => 'C001', 'name_th' => 'ลูกค้า A', 'is_active' => true]);
         $this->department = Department::create(['code' => 'OPS', 'name_th' => 'ฝ่ายปฏิบัติการ', 'is_active' => true]);
         $this->problem = ProblemType::create(['code' => 'PROCESS', 'name_th' => 'กระบวนการ', 'is_active' => true]);
         $this->severity = SeverityLevel::create(['code' => 'HIGH', 'name_th' => 'สูง', 'is_active' => true]);
@@ -114,8 +118,10 @@ class NcrPhaseFourTest extends TestCase
         $report = $this->approvedReport();
         $actor = $this->openingManager($report);
         $otherDepartment = Department::create(['code' => 'QA2', 'name_th' => 'ฝ่ายอื่น', 'is_active' => true]);
+        $otherOwner = $this->user([], $otherDepartment);
         $payload = array_merge($this->actionPayload($actor, $report), [
             'responsible_department_id' => $otherDepartment->id,
+            'owner_user_id' => $otherOwner->id,
         ]);
 
         $this->actingAs($actor)
@@ -597,13 +603,10 @@ class NcrPhaseFourTest extends TestCase
         $otherDepartment = Department::create(['code' => 'QA2', 'name_th' => 'ฝ่ายอื่น', 'is_active' => true]);
         $otherActor = $this->user(['ncr.action.manage'], $otherDepartment);
 
-        $invalidPayload = array_merge($this->actionPayload($otherActor, $report), [
-            'responsible_department_id' => $otherDepartment->id,
-        ]);
+        $validPayload = $this->actionPayload($responsibleActor, $report);
         $this->actingAs($otherActor)
-            ->post(route('ncr.corrective-actions.store', $report), $invalidPayload)
-            ->assertRedirect()
-            ->assertSessionHasErrors('responsible_department_id');
+            ->post(route('ncr.corrective-actions.store', $report), $validPayload)
+            ->assertForbidden();
         $this->assertSame(0, $report->correctiveActions()->count());
 
         $this->actingAs($responsibleActor)->post(
@@ -616,13 +619,40 @@ class NcrPhaseFourTest extends TestCase
 
         $this->actingAs($otherActor)->put(
             route('ncr.corrective-actions.update', [$report, $action]),
-            array_merge($invalidPayload, ['version_no' => $report->version_no])
+            array_merge($validPayload, ['version_no' => $report->version_no])
         )->assertForbidden();
         $this->assertSame($originalDetail, $action->fresh()->corrective_action_detail);
         $this->actingAs($otherActor)->post(
             route('ncr.corrective-actions.submit-approval', $report),
             ['version_no' => $report->version_no]
         )->assertForbidden();
+    }
+
+    public function test_super_admin_can_manage_actions_across_departments(): void
+    {
+        $report = $this->approvedReport();
+        $responsibleActor = $this->openingManager($report);
+        $superAdmin = $this->user([]);
+        $superAdmin->assignRole(Role::create(['name' => 'Super Admin', 'guard_name' => 'web']));
+
+        $this->actingAs($superAdmin)
+            ->post(route('ncr.corrective-actions.store', $report), $this->actionPayload($responsibleActor, $report))
+            ->assertRedirect();
+
+        $report->refresh();
+        $action = $report->correctiveActions()->firstOrFail();
+        $payload = array_merge($this->actionPayload($responsibleActor, $report), [
+            'version_no' => $report->version_no,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->put(route('ncr.corrective-actions.update', [$report, $action]), $payload)
+            ->assertRedirect();
+
+        $report->refresh();
+        $this->actingAs($superAdmin)
+            ->post(route('ncr.corrective-actions.submit-approval', $report), ['version_no' => $report->version_no])
+            ->assertRedirect();
     }
 
     public function test_stale_version_is_rejected_without_creating_another_action(): void
@@ -715,6 +745,7 @@ class NcrPhaseFourTest extends TestCase
             'problem_type_id' => $this->problem->id,
             'severity_level_id' => $this->severity->id,
             'problem_description' => 'พบความผิดปกติ',
+            'customer_id' => $this->customer->id,
             'items' => [['product_id' => Product::firstOrFail()->id, 'product_name' => 'สินค้า A', 'defect_quantity' => 1, 'total_quantity' => 10, 'unit_name' => 'PCS']],
         ]);
         $report = NcrReport::firstOrFail();

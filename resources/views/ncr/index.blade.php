@@ -59,7 +59,7 @@
                         </td>
                         <td class="px-0 py-4" data-label="วันที่">{{ \App\Support\ThaiDateFormatter::formatDate($r->report_date) }}</td>
                         <td class="px-4 py-4" data-label="ผู้สร้าง"><div class="font-medium text-slate-800">{{ $r->reporter->name }}</div></td>
-                        <td class="px-4 py-4" data-label="สินค้า / ปัญหา"><div>{{ $firstItem?->product_name ?: '-' }}{{ $r->items->count() > 1 ? ' (+'.($r->items->count() - 1).')' : '' }}</div><div class="max-w-md truncate text-slate-500">{{ $r->problem_description }}</div></td>
+                        <td class="px-4 py-4" data-label="สินค้า / ปัญหา"><div>{{ $firstItem?->product_name ?: '-' }}</div><div class="max-w-md truncate text-slate-500">{{ $r->problem_description }}</div></td>
                         <td class="px-4 py-4" data-label="หน่วยงานที่พบปัญหา">{{ optional($r->relatedDepartment)->name_th?:'-' }}</td>
                         <td class="px-4 py-4" data-label="สถานะ"><span class="ncr-status-chip" title="{{ $r->current_status }}">{{ config('ncr.status_labels.'.$r->current_status, $r->current_status) }}</span></td>
                         <td class="px-1 py-4" data-label="เอกสาร">@if($r->current_status === 'CLOSED')

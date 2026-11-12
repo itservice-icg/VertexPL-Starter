@@ -72,6 +72,7 @@ class UserManagementTest extends TestCase
         $response = $this->actingAs($admin)->post(route('users.store'), [
             'name' => 'New User',
             'email' => 'new@example.com',
+            'department_role' => 'MEMBER',
             'role_id' => $role->id,
             'is_active' => '1',
             'password' => 'StrongPassword1!',
@@ -84,6 +85,49 @@ class UserManagementTest extends TestCase
         $this->assertTrue(Hash::check('StrongPassword1!', $user->password));
         $this->assertTrue($user->is_active);
         $this->assertTrue($user->hasRole('Viewer'));
+    }
+
+    public function test_super_admin_role_assignment_requires_permission_to_manage_permissions()
+    {
+        $superAdminRole = Role::create(['name' => 'Super Admin', 'guard_name' => 'web']);
+        $creator = $this->userWithPermissions(['users.create']);
+
+        $this->actingAs($creator)->post(route('users.store'), [
+            'name' => 'Unauthorized Super Admin',
+            'email' => 'unauthorized-super-admin@example.com',
+            'department_role' => 'MEMBER',
+            'role_id' => $superAdminRole->id,
+            'is_active' => '1',
+            'password' => 'StrongPassword1!',
+            'password_confirmation' => 'StrongPassword1!',
+        ])->assertForbidden();
+        $this->assertDatabaseMissing('users', ['email' => 'unauthorized-super-admin@example.com']);
+
+        $updater = $this->userWithPermissions(['users.update']);
+        $target = User::factory()->create();
+        $this->actingAs($updater)->put(route('users.update', $target), [
+            'name' => $target->name,
+            'email' => $target->email,
+            'department_role' => 'MEMBER',
+            'role_id' => $superAdminRole->id,
+            'is_active' => '1',
+            'password' => '',
+            'password_confirmation' => '',
+        ])->assertForbidden();
+        $this->assertFalse($target->fresh()->hasRole('Super Admin'));
+
+        $permissionManager = $this->userWithPermissions(['users.create', 'permissions.manage']);
+        $this->actingAs($permissionManager)->post(route('users.store'), [
+            'name' => 'Authorized Super Admin',
+            'email' => 'authorized-super-admin@example.com',
+            'department_role' => 'MEMBER',
+            'role_id' => $superAdminRole->id,
+            'is_active' => '1',
+            'password' => 'StrongPassword1!',
+            'password_confirmation' => 'StrongPassword1!',
+        ])->assertRedirect(route('users.index'));
+
+        $this->assertTrue(User::where('email', 'authorized-super-admin@example.com')->firstOrFail()->hasRole('Super Admin'));
     }
 
     public function test_authorized_user_can_assign_and_filter_users_by_department()
@@ -100,6 +144,7 @@ class UserManagementTest extends TestCase
             'name' => 'Department User',
             'email' => 'department@example.com',
             'department_id' => $department->id,
+            'department_role' => 'MEMBER',
             'role_id' => $role->id,
             'is_active' => '1',
             'password' => 'StrongPassword1!',
@@ -166,6 +211,7 @@ class UserManagementTest extends TestCase
             ->put(route('users.update', $target), [
                 'name' => 'Updated Name',
                 'email' => 'updated@example.com',
+                'department_role' => 'MEMBER',
                 'role_id' => $newRole->id,
                 'is_active' => '0',
                 'password' => '',
@@ -190,6 +236,7 @@ class UserManagementTest extends TestCase
             ->put(route('users.update', $admin), [
                 'name' => $admin->name,
                 'email' => $admin->email,
+                'department_role' => 'MEMBER',
                 'role_id' => $role->id,
                 'is_active' => '0',
                 'password' => '',

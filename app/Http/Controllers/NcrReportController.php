@@ -60,7 +60,7 @@ class NcrReportController extends Controller
         return view('ncr.index',compact('reports','filters','departments','statuses'));
     }
     public function create(){return view('ncr.form',$this->options()+['ncr'=>new NcrReport()]);}
-    public function store(SaveNcrReportRequest $request){$validated=$request->validated();$report=$this->workflow->createDraft($request->safe()->except(['version_no','attachments','items','company_customer_id']),$request->user(),$validated['items'],$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','สร้าง NCR Draft เรียบร้อยแล้ว');}
+    public function store(SaveNcrReportRequest $request){$validated=$request->validated();$report=$this->workflow->createDraft($request->safe()->except(['version_no','attachments','items']),$request->user(),$validated['items'],$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','สร้าง NCR Draft เรียบร้อยแล้ว');}
     public function show(Request $request, NcrReport $ncr)
     {
         abort_unless($this->visibility->canView($ncr, $request->user()), 404);
@@ -139,7 +139,7 @@ class NcrReportController extends Controller
 
         return view('ncr.form', $this->options($ncr) + ['ncr' => $ncr, 'returnReason' => $returnReason]);
     }
-    public function update(SaveNcrReportRequest $request,NcrReport $ncr){$validated=$request->validated();$report=$this->workflow->updateDraft($ncr,$request->safe()->except(['version_no','attachments','items','company_customer_id']),$validated['items'],$request->user(),(int)$request->input('version_no'),$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','บันทึก NCR เรียบร้อยแล้ว');}
+    public function update(SaveNcrReportRequest $request,NcrReport $ncr){$validated=$request->validated();$report=$this->workflow->updateDraft($ncr,$request->safe()->except(['version_no','attachments','items']),$validated['items'],$request->user(),(int)$request->input('version_no'),$request->file('attachments',[]));return redirect()->route('ncr.show',$report)->with('success','บันทึก NCR เรียบร้อยแล้ว');}
     public function submit(Request $request,NcrReport $ncr){$data=$request->validate(['version_no'=>['required','integer']]);$this->workflow->submit($ncr,$request->user(),(int)$data['version_no']);return redirect()->route('ncr.show',$ncr)->with('success','ส่ง NCR ตรวจสอบแล้ว');}
     public function initialReview(Request $request, NcrReport $ncr)
     {
@@ -175,7 +175,7 @@ class NcrReportController extends Controller
     public function download(Request $request,NcrReport $ncr,NcrAttachment $attachment){$this->assertVisible($ncr,$request);abort_unless((int)$attachment->ncr_report_id===(int)$ncr->id&&$attachment->is_active,404);abort_unless(Storage::disk('local')->exists($attachment->storage_path),404);return Storage::disk('local')->download($attachment->storage_path,$attachment->original_filename);}
     private function options(?NcrReport $ncr = null): array
     {
-        $itemIds = $ncr ? $ncr->items()->get(['product_id', 'customer_id']) : collect();
+        $itemIds = $ncr ? $ncr->items()->limit(1)->pluck('product_id')->filter()->all() : [];
         return [
             'departments' => Department::where('is_active', true)->orderBy('code')->get(),
             'formScopes' => $this->formScopeOptions(null, false),
@@ -183,8 +183,11 @@ class NcrReportController extends Controller
             'severityLevels' => SeverityLevel::where('is_active', true)->orderBy('sort_order')->get(),
             'dispositionTypes' => DispositionType::where('is_active', true)->orderBy('code')->get(),
             'units' => Unit::where('is_active', true)->orderBy('code')->get(),
-            'products' => Product::where('is_active', true)->orderBy('code')->get(),
-            'customers' => $this->referenceOptions(Customer::class, $itemIds->pluck('customer_id')->filter()->all()),
+            'products' => Product::query()->where(function ($query) use ($itemIds) {
+                $query->where('is_active', true);
+                if ($itemIds) $query->orWhereIn('id', $itemIds);
+            })->orderBy('code')->get(),
+            'customers' => $this->referenceOptions(Customer::class, $ncr && $ncr->customer_id ? [$ncr->customer_id] : []),
             'suppliers' => $this->referenceOptions(Supplier::class, $ncr && $ncr->supplier_id ? [$ncr->supplier_id] : []),
         ];
     }

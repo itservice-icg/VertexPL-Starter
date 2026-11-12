@@ -20,8 +20,8 @@ use Tests\TestCase;
 class NcrPhaseTwoTest extends TestCase
 {
     use RefreshDatabase;
-    private Department $department; private ProblemType $problemType; private SeverityLevel $severity; private Product $product;
-    protected function setUp():void{parent::setUp();Unit::create(['code'=>'PCS','name_th'=>'ชิ้น','is_active'=>true]);$this->product=Product::create(['code'=>'P001','name_th'=>'Product A','is_active'=>true]);$this->department=Department::create(['code'=>'QA','name_th'=>'ประกันคุณภาพ','is_active'=>true]);$this->problemType=ProblemType::create(['code'=>'PROCESS','name_th'=>'กระบวนการ','is_active'=>true]);$this->severity=SeverityLevel::create(['code'=>'HIGH','name_th'=>'สูง','is_active'=>true]);}
+    private Department $department; private ProblemType $problemType; private SeverityLevel $severity; private Product $product; private Customer $customer;
+    protected function setUp():void{parent::setUp();Unit::create(['code'=>'PCS','name_th'=>'ชิ้น','is_active'=>true]);$this->product=Product::create(['code'=>'P001','name_th'=>'Product A','is_active'=>true]);$this->customer=Customer::create(['code'=>'C001','name_th'=>'Customer A','is_active'=>true]);$this->department=Department::create(['code'=>'QA','name_th'=>'ประกันคุณภาพ','is_active'=>true]);$this->problemType=ProblemType::create(['code'=>'PROCESS','name_th'=>'กระบวนการ','is_active'=>true]);$this->severity=SeverityLevel::create(['code'=>'HIGH','name_th'=>'สูง','is_active'=>true]);}
 
     public function test_reporter_can_create_draft_with_number_item_history_and_attachment():void
     {
@@ -29,35 +29,39 @@ class NcrPhaseTwoTest extends TestCase
         $this->actingAs($user)->get(route('ncr.create'))
             ->assertOk()
             ->assertSee('สร้างรายงาน NCR ใหม่')
-            ->assertSee('name="reference_product_code"', false)
-            ->assertSee('name="reference_product_name"', false)
-            ->assertSee('name="reference_customer_name"', false)
+            ->assertSee('name="items[0][product_code]"', false)
+            ->assertSee('name="items[0][product_name]"', false)
+            ->assertSee('name="items[0][product_id]"', false)
+            ->assertSee('name="customer_id"', false)
+            ->assertSee('กรอกข้อมูลสินค้าและจำนวนที่พบ พร้อมรายละเอียดความผิดปกติ')
+            ->assertSee('กรอกช่องที่มี * ให้ครบก่อนบันทึกเป็นฉบับร่าง')
             ->assertDontSee('name="reference_no"', false)
             ->assertDontSee('name="machine_or_process"', false)
-            ->assertSee('name="company_customer_id"', false)
-            ->assertDontSee('<select id="company_customer_id"', false)
-            ->assertSee('role="combobox"', false)
-            ->assertSee('aria-controls="reference-product-code-options"', false)
-            ->assertSee('aria-controls="reference-product-name-options"', false)
-            ->assertSee('aria-controls="reference-customer-name-options"', false)
-            ->assertSee('id="reference-product-code-options"', false)
-            ->assertSee('id="reference-product-name-options"', false)
-            ->assertSee('id="reference-customer-name-options"', false)
-            ->assertSee('referenceKeydown($event, \'productCode\')', false)
-            ->assertSee('chooseReference(\'productCode\', option.value)', false);
+            ->assertDontSee('reference_customer_name', false)
+            ->assertDontSee('เพิ่มรายการสินค้า')
+            ->assertDontSee('สูงสุด 50 รายการ')
+            ->assertDontSee('<dialog x-ref="itemDialog"', false)
+            ->assertSee('required', false)
+            ->assertSee('selectProduct($event.target.value)', false)
+            ->assertSee('name="items[0][defect_quantity]"', false)
+            ->assertSee('name="items[0][total_quantity]"', false)
+            ->assertSee('x-text="percentage()"', false);
         $this->actingAs($user)->post(route('ncr.store'),$this->payload()+['attachments'=>[UploadedFile::fake()->create('proof.pdf',50,'application/pdf')]])->assertRedirect();
         $report=NcrReport::firstOrFail();$this->assertMatchesRegularExpression('/^NCR-\d{4}-00001$/',$report->ncr_no);$this->assertSame('DRAFT',$report->current_status);
         $this->assertDatabaseHas('ncr_items',['ncr_report_id'=>$report->id,'line_no'=>1]);$this->assertDatabaseHas('ncr_status_history',['ncr_report_id'=>$report->id,'action_code'=>'CREATE_DRAFT']);
         $attachment=$report->attachments()->firstOrFail();Storage::disk('local')->assertExists($attachment->storage_path);
     }
 
-    public function test_reference_fields_save_manual_values_without_changing_item_snapshots(): void
+    public function test_manual_product_values_and_customer_master_are_saved_at_their_single_levels(): void
     {
         $user = $this->user(['ncr.create']);
         $payload = $this->payload([
-            'reference_product_code' => 'CUSTOM-CODE',
-            'reference_product_name' => 'Custom reference product',
-            'reference_customer_name' => 'Custom reference customer',
+            'items' => [[
+                'product_code' => 'CUSTOM-CODE',
+                'product_name' => 'Custom reference product',
+                'defect_quantity' => 1,
+                'total_quantity' => 10,
+            ]],
         ]);
 
         $this->actingAs($user)->post(route('ncr.store'), $payload)
@@ -65,119 +69,112 @@ class NcrPhaseTwoTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $report = NcrReport::firstOrFail();
-        $this->assertSame('CUSTOM-CODE', $report->reference_product_code);
-        $this->assertSame('Custom reference product', $report->reference_product_name);
-        $this->assertSame('Custom reference customer', $report->reference_customer_name);
-        $this->assertSame('P001', $report->items()->firstOrFail()->product_code);
-        $this->assertSame('Product A', $report->items()->firstOrFail()->product_name);
+        $this->assertSame('CUSTOM-CODE', $report->items()->firstOrFail()->product_code);
+        $this->assertSame('Custom reference product', $report->items()->firstOrFail()->product_name);
+        $this->assertSame(1, $report->items()->count());
+        $this->assertSame($this->customer->id, $report->customer_id);
+        $this->assertNull($report->items()->firstOrFail()->customer_id);
         $this->assertDatabaseHas('ncr_reports', [
             'id' => $report->id,
-            'company_name' => 'Custom reference customer',
+            'company_name' => 'Customer A',
         ]);
     }
 
-    public function test_reference_fields_are_server_validated_and_accept_arbitrary_manual_values(): void
+    public function test_request_rejects_more_than_one_item(): void
     {
         $user = $this->user(['ncr.create']);
-        $this->actingAs($user)->post(route('ncr.store'), $this->payload([
-            'reference_product_code' => str_repeat('X', 256),
-            'reference_product_name' => 'Manual name not present in Product Master',
-            'reference_customer_name' => 'Manual customer not present in Customer Master',
-        ]))->assertSessionHasErrors('reference_product_code');
+        $payload = $this->payload();
+        $payload['items'][] = $payload['items'][0];
+
+        $this->actingAs($user)->post(route('ncr.store'), $payload)->assertSessionHasErrors('items');
+        $this->assertDatabaseCount('ncr_reports', 0);
+    }
+
+    public function test_request_with_a_malformed_item_returns_validation_errors_instead_of_server_error(): void
+    {
+        $user = $this->user(['ncr.create']);
+        $payload = $this->payload(['items' => ['malformed-item']]);
+
+        $this->actingAs($user)->post(route('ncr.store'), $payload)
+            ->assertSessionHasErrors(['items.0.product_name', 'items.0.defect_quantity', 'items.0.total_quantity']);
 
         $this->assertDatabaseCount('ncr_reports', 0);
-
-        $this->actingAs($user)->post(route('ncr.store'), $this->payload([
-            'reference_product_code' => 'CUSTOM-001',
-            'reference_product_name' => 'Manual name not present in Product Master',
-            'reference_customer_name' => 'Manual customer not present in Customer Master',
-        ]))->assertRedirect()->assertSessionHasNoErrors();
-
-        $report = NcrReport::firstOrFail();
-        $this->assertSame('Manual name not present in Product Master', $report->reference_product_name);
-        $this->assertSame('Manual customer not present in Customer Master', $report->reference_customer_name);
     }
 
-    public function test_reference_fields_can_be_updated_and_loaded_from_the_report(): void
+    public function test_required_fields_and_invalid_quantity_are_reported_without_creating_a_report(): void
     {
-        $user = $this->user(['ncr.create', 'ncr.update']);
-        $this->actingAs($user)->post(route('ncr.store'), $this->payload());
-        $report = NcrReport::firstOrFail();
+        $user = $this->user(['ncr.create']);
+        $payload = $this->payload();
+        $payload['customer_id'] = '';
+        $payload['items'][0]['product_name'] = '';
+        $payload['items'][0]['defect_quantity'] = '';
+        $payload['items'][0]['total_quantity'] = 0;
 
-        $this->actingAs($user)->put(route('ncr.update', $report), $this->payload([
-            'version_no' => $report->version_no,
-            'reference_product_code' => 'MASTER-EDITED',
-            'reference_product_name' => 'Edited after master selection',
-            'reference_customer_name' => '<script>alert(1)</script>',
-        ]))->assertRedirect()->assertSessionHasNoErrors();
-
-        $report->refresh();
-        $this->assertSame('MASTER-EDITED', $report->reference_product_code);
-        $this->assertSame('Edited after master selection', $report->reference_product_name);
-        $this->assertSame('<script>alert(1)</script>', $report->reference_customer_name);
-        $this->actingAs($user)->get(route('ncr.edit', $report))
-            ->assertOk()
-            ->assertSee('value="MASTER-EDITED"', false)
-            ->assertSee('value="Edited after master selection"', false)
-            ->assertSee('value="&lt;script&gt;alert(1)&lt;/script&gt;"', false);
+        $this->actingAs($user)->post(route('ncr.store'), $payload)
+            ->assertSessionHasErrors(['customer_id', 'items.0.product_name', 'items.0.defect_quantity', 'items.0.total_quantity']);
+        $this->assertDatabaseCount('ncr_reports', 0);
     }
 
-    public function test_customer_reference_selector_saves_master_id_name_and_item_relationship(): void
+    public function test_quantity_precision_and_storage_range_are_enforced(): void
+    {
+        $user = $this->user(['ncr.create']);
+        $payload = $this->payload();
+        $payload['items'][0]['defect_quantity'] = '1.12345';
+
+        $this->actingAs($user)->post(route('ncr.store'), $payload)
+            ->assertSessionHasErrors('items.0.defect_quantity');
+
+        $payload['items'][0]['defect_quantity'] = '100000000000000';
+        $this->actingAs($user)->post(route('ncr.store'), $payload)
+            ->assertSessionHasErrors('items.0.defect_quantity');
+
+        $this->assertDatabaseCount('ncr_reports', 0);
+    }
+
+    public function test_customer_master_selection_is_saved_on_report_and_item_is_updated_in_place(): void
     {
         $user = $this->user(['ncr.create', 'ncr.update']);
         $firstCustomer = Customer::create(['code' => 'C-001', 'name_th' => 'ลูกค้าหนึ่ง', 'is_active' => true]);
         $secondCustomer = Customer::create(['code' => 'C-002', 'name_th' => 'ลูกค้าสอง', 'is_active' => true]);
 
         $this->actingAs($user)->post(route('ncr.store'), $this->payload([
-            'company_customer_id' => $firstCustomer->id,
-            'reference_customer_name' => $firstCustomer->name_th,
+            'customer_id' => $firstCustomer->id,
         ]))->assertRedirect()->assertSessionHasNoErrors();
 
         $report = NcrReport::firstOrFail();
+        $itemId = $report->items()->value('id');
         $this->assertSame($firstCustomer->name_th, $report->company_name);
-        $this->assertSame($firstCustomer->name_th, $report->reference_customer_name);
-        $this->assertSame($firstCustomer->id, $report->items()->firstOrFail()->customer_id);
+        $this->assertSame($firstCustomer->id, $report->customer_id);
         $this->actingAs($user)->get(route('ncr.edit', $report))
             ->assertOk()
-            ->assertSee('value="ลูกค้าหนึ่ง"', false)
+            ->assertSee('<option value="'.$firstCustomer->id.'" selected', false)
             ->assertDontSee('name="reference_no"', false)
             ->assertDontSee('name="machine_or_process"', false)
-            ->assertSee('name="company_customer_id"', false);
+            ->assertSee('name="customer_id"', false);
 
         $update = $this->payload([
             'version_no' => $report->version_no,
-            'company_customer_id' => $secondCustomer->id,
-            'reference_customer_name' => $secondCustomer->name_th,
+            'customer_id' => $secondCustomer->id,
         ]);
         $update['items'][0]['item_id'] = $report->items()->firstOrFail()->id;
         $this->actingAs($user)->put(route('ncr.update', $report), $update)
             ->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame($secondCustomer->name_th, $report->fresh()->company_name);
-        $this->assertSame($secondCustomer->id, $report->fresh()->items()->firstOrFail()->customer_id);
-
-        $manual = $this->payload([
-            'version_no' => $report->fresh()->version_no,
-            'company_customer_id' => '',
-            'reference_customer_name' => 'ลูกค้ากรอกเอง',
-        ]);
-        $manual['items'][0]['item_id'] = $report->items()->firstOrFail()->id;
-        $this->actingAs($user)->put(route('ncr.update', $report), $manual)
-            ->assertRedirect()->assertSessionHasNoErrors();
-
-        $this->assertSame('ลูกค้ากรอกเอง', $report->fresh()->company_name);
+        $this->assertSame($secondCustomer->id, $report->fresh()->customer_id);
+        $this->assertSame($itemId, $report->fresh()->items()->value('id'));
+        $this->assertSame(1, $report->fresh()->items()->count());
         $this->assertNull($report->fresh()->items()->firstOrFail()->customer_id);
     }
 
-    public function test_customer_selector_rejects_master_id_when_displayed_name_does_not_match(): void
+    public function test_customer_master_selection_rejects_inactive_customer(): void
     {
         $user = $this->user(['ncr.create']);
-        $customer = Customer::create(['code' => 'C-003', 'name_th' => 'ลูกค้าจริง', 'is_active' => true]);
+        $customer = Customer::create(['code' => 'C-003', 'name_th' => 'ลูกค้าจริง', 'is_active' => false]);
 
         $this->actingAs($user)->post(route('ncr.store'), $this->payload([
-            'company_customer_id' => $customer->id,
-            'reference_customer_name' => 'ชื่อไม่ตรง',
-        ]))->assertSessionHasErrors('reference_customer_name');
+            'customer_id' => $customer->id,
+        ]))->assertSessionHasErrors('customer_id');
 
         $this->assertDatabaseCount('ncr_reports', 0);
     }
@@ -228,13 +225,16 @@ class NcrPhaseTwoTest extends TestCase
         ]))->assertSessionHasErrors('legacy_form_scope_codes');
     }
 
-    public function test_product_section_offers_add_item_button(): void
+    public function test_product_section_has_one_static_item_form_without_add_controls(): void
     {
         $user = $this->user(['ncr.create']);
 
         $this->actingAs($user)->get(route('ncr.create'))
             ->assertOk()
-            ->assertSee('+ เพิ่มรายการ');
+            ->assertSee('กรอกข้อมูลสินค้าและจำนวนที่พบ พร้อมรายละเอียดความผิดปกติ')
+            ->assertDontSee('เพิ่มรายการสินค้า')
+            ->assertDontSee('สูงสุด 50 รายการ')
+            ->assertDontSee('<dialog x-ref="itemDialog"', false);
     }
 
     public function test_problem_department_defaults_to_reporter_department(): void
@@ -245,27 +245,33 @@ class NcrPhaseTwoTest extends TestCase
 
         $response->assertOk()->assertSee('หน่วยงานที่พบปัญหา');
         $this->assertMatchesRegularExpression(
-            '/<select\s+name="related_department_id".*?<option\s+value="'.$this->department->id.'"[^>]*selected/s',
+            '/<select\b(?=[^>]*\bid="related_department_id")(?=[^>]*\bname="related_department_id")[^>]*>.*?<option\s+value="'.$this->department->id.'"[^>]*selected/s',
             $response->getContent()
         );
     }
 
-    public function test_report_can_create_edit_and_remove_multiple_items():void
+    public function test_report_update_keeps_one_existing_item_and_rejects_a_second_item():void
     {
         $user=$this->user(['ncr.create','ncr.update','ncr.view']);
         $productA = Product::create(['code'=>'A','name_th'=>'สินค้า A','is_active'=>true]);
         $productB = Product::create(['code'=>'B','name_th'=>'สินค้า B','is_active'=>true]);
-        $items=[
-            ['product_id'=>$productA->id,'product_code'=>'A','product_name'=>'สินค้า A','lot_no'=>'L1','defect_quantity'=>1,'total_quantity'=>10,'unit_name'=>'PCS'],
-            ['product_id'=>$productB->id,'product_code'=>'B','product_name'=>'สินค้า B','lot_no'=>'L2','defect_quantity'=>2,'total_quantity'=>20,'unit_name'=>'PCS'],
-        ];
-        $this->actingAs($user)->post(route('ncr.store'),$this->payload(['items'=>$items]))->assertRedirect();
-        $report=NcrReport::firstOrFail();$this->assertCount(2,$report->items);$this->assertSame('สินค้า A',$report->items->first()->product_name);
-        $this->actingAs($user)->get(route('ncr.index', ['search' => 'สินค้า B']))->assertOk()->assertSee($report->ncr_no);
-        $this->actingAs($user)->get(route('ncr.show',$report))->assertOk()->assertSee('สินค้า A')->assertSee('สินค้า B');
-        $items[1]['item_id'] = $report->items()->where('product_id', $productB->id)->firstOrFail()->id;
-        $this->actingAs($user)->put(route('ncr.update',$report),$this->payload(['version_no'=>$report->version_no,'items'=>[$items[1]]]))->assertRedirect();
-        $this->assertCount(1,$report->fresh()->items);$this->assertSame('สินค้า B',$report->fresh()->items->first()->product_name);
+        $this->actingAs($user)->post(route('ncr.store'),$this->payload(['product_id'=>$productA->id,'product_name'=>'สินค้า A','product_code'=>'A']))->assertRedirect()->assertSessionHasNoErrors();
+        $report=NcrReport::firstOrFail();
+        $itemId = $report->items()->value('id');
+        $this->assertSame(1,$report->items()->count());
+        $update = $this->payload(['version_no'=>$report->version_no,'product_id'=>$productB->id,'product_name'=>'สินค้า B','product_code'=>'B']);
+        $update['items'][0]['item_id'] = $itemId;
+        $this->actingAs($user)->put(route('ncr.update',$report),$update)->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame($itemId, $report->fresh()->items()->value('id'));
+        $this->assertSame('สินค้า B',$report->fresh()->items()->firstOrFail()->product_name);
+        $this->actingAs($user)->get(route('ncr.show', $report))
+            ->assertOk()
+            ->assertSee('สินค้า B')
+            ->assertSee('Customer A');
+        $update['version_no'] = $report->fresh()->version_no;
+        $update['items'][] = $update['items'][0];
+        $this->actingAs($user)->put(route('ncr.update',$report),$update)->assertSessionHasErrors('items');
+        $this->assertSame(1,$report->fresh()->items()->count());
     }
 
     public function test_report_does_not_store_a_duplicate_product_snapshot(): void
@@ -278,9 +284,8 @@ class NcrPhaseTwoTest extends TestCase
             $this->assertFalse(Schema::hasColumn('ncr_reports', $column), "ncr_reports.{$column} should be stored on ncr_items only");
         }
 
-        foreach (['reference_product_code', 'reference_product_name', 'reference_customer_name'] as $column) {
-            $this->assertTrue(Schema::hasColumn('ncr_reports', $column), "ncr_reports.{$column} stores the SECTION 03 report reference");
-        }
+        $this->assertTrue(Schema::hasColumn('ncr_reports', 'customer_id'));
+        $this->assertTrue(Schema::hasColumn('ncr_reports', 'company_name'));
     }
 
 
@@ -367,7 +372,7 @@ class NcrPhaseTwoTest extends TestCase
     private function payload(array $overrides=[]):array
     {
         $item=['product_id'=>$this->product->id,'product_code'=>'P001','product_name'=>'Product A','lot_no'=>'LOT-1','defect_quantity'=>2,'total_quantity'=>10,'unit_name'=>'PCS','problem_description'=>'พบความผิดปกติ'];
-        foreach(['product_id','product_code','product_name','lot_no','po_no','batch_no','customer_name','defect_quantity','total_quantity','unit_name'] as $field)if(array_key_exists($field,$overrides))$item[$field]=$overrides[$field];
-        return array_merge(['report_date'=>'2026-08-20','found_date'=>'2026-08-20','problem_type_id'=>$this->problemType->id,'severity_level_id'=>$this->severity->id,'problem_description'=>'พบความผิดปกติ','items'=>[$item]],$overrides);
+        foreach(['product_id','product_code','product_name','lot_no','po_no','batch_no','defect_quantity','total_quantity','unit_name'] as $field)if(array_key_exists($field,$overrides))$item[$field]=$overrides[$field];
+        return array_merge(['report_date'=>'2026-08-20','found_date'=>'2026-08-20','problem_type_id'=>$this->problemType->id,'severity_level_id'=>$this->severity->id,'problem_description'=>'พบความผิดปกติ','customer_id'=>$this->customer->id,'items'=>[$item]],$overrides);
     }
 }

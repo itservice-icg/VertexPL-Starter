@@ -5,12 +5,17 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Spatie\Permission\Models\Role;
 
 class UpdateUserRequest extends FormRequest
 {
     public function authorize()
     {
-        return $this->user()->can('users.update');
+        if (! $this->user()->can('users.update')) {
+            return false;
+        }
+
+        return ! $this->assignsSuperAdminRole() || $this->user()->can('permissions.manage');
     }
 
     public function rules()
@@ -52,5 +57,10 @@ class UpdateUserRequest extends FormRequest
                 $validator->errors()->add('department_id', 'บทบาทนี้ต้องผูกกับหน่วยงานก่อน');
             }
         });
+    }
+
+    private function assignsSuperAdminRole(): bool
+    {
+        return Role::query()->whereKey($this->input('role_id'))->where('name', 'Super Admin')->exists();
     }
 }

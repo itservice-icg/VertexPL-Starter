@@ -27,6 +27,10 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
+        Gate::before(function (User $user) {
+            return $user->hasRole('Super Admin') ? true : null;
+        });
+
         Gate::define('ncr.corrective-action.approve', function (User $user, NcrReport $report) {
             $departmentId = $report->dispositions()
                 ->where('status', 'APPROVED')

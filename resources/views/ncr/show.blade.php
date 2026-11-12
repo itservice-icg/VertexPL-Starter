@@ -344,7 +344,7 @@
                 <div>
                     <div class="ncr-report-section-heading">
                         <h3 class="ncr-section-title">ข้อมูลผลิตภัณฑ์ / รายงาน</h3>
-                        <span>{{ $ncr->items->count() }} รายการ</span>
+                        <span>{{ $ncr->items->isNotEmpty() ? 1 : 0 }} รายการ</span>
                     </div>
                     <div class="ncr-report-table-shell overflow-x-auto rounded-lg border">
                         <table class="ncr-mobile-cards min-w-full divide-y text-sm">
@@ -361,12 +361,11 @@
                                     <th scope="col" class="px-3 py-2 text-left">รายละเอียด</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y">@foreach($ncr->items as $item)<tr>
+                            <tbody class="divide-y">@foreach($ncr->items->take(1) as $item)<tr>
                                     <td class="px-3 py-2" data-label="#">{{ $item->line_no }}</td>
                                     <td class="px-3 py-2" data-label="สินค้า">
                                         <div class="font-medium">{{ $item->product_name }}</div>
                                         <div class="text-xs text-slate-500">{{ $item->product_code }}</div>
-                                        <div class="text-xs text-slate-500">{{ $item->customer_name ?: '-' }}</div>
                                     </td>
                                     <td class="px-3 py-2" data-label="Lot / Batch / PO">{{ $item->lot_no ?: '-' }} / {{ $item->batch_no ?: '-' }} / {{ $item->po_no ?: '-' }}</td>
                                     <td class="px-3 py-2 text-right" data-label="จำนวนที่พบ">{{ $item->defect_quantity }} {{ $item->defect_unit_name ?: $item->unit_name }}</td>
@@ -400,7 +399,7 @@
                                                 <section>
                                                     <h4 class="ncr-item-dialog__section-title">ข้อมูลผลิตภัณฑ์ / รายงาน — รายการ {{ $item->line_no }}</h4>
                                                     <dl class="ncr-item-dialog__grid">
-                                                        @foreach(['รหัสสินค้า'=>$item->product_code,'ชื่อสินค้า'=>$item->product_name,'ชื่อลูกค้า'=>$item->customer_name,'PO No.'=>$item->po_no,'Lot No.'=>$item->lot_no,'Batch No.'=>$item->batch_no,'จำนวนที่พบ'=>trim($item->defect_quantity.' '.($item->defect_unit_name ?: $item->unit_name)),'จากจำนวนทั้งหมด'=>trim($item->total_quantity.' '.($item->total_unit_name ?: $item->unit_name)),'คิดเป็นร้อยละ (%)'=>$item->defect_percentage===null?null:number_format($item->defect_percentage,2).'%','ลักษณะผิดปกติที่พบ / รายละเอียด'=>$item->problem_description] as $label => $value)
+                                                        @foreach(['รหัสสินค้า'=>$item->product_code,'ชื่อสินค้า'=>$item->product_name,'PO No.'=>$item->po_no,'Lot No.'=>$item->lot_no,'Batch No.'=>$item->batch_no,'จำนวนที่พบ'=>trim($item->defect_quantity.' '.($item->defect_unit_name ?: $item->unit_name)),'จากจำนวนทั้งหมด'=>trim($item->total_quantity.' '.($item->total_unit_name ?: $item->unit_name)),'คิดเป็นร้อยละ (%)'=>$item->defect_percentage===null?null:number_format($item->defect_percentage,2).'%','ลักษณะผิดปกติที่พบ / รายละเอียด'=>$item->problem_description] as $label => $value)
                                                             @if(filled($value))<div><dt>{{ $label }}</dt><dd>{{ $value }}</dd></div>@endif
                                                         @endforeach
                                                     </dl>

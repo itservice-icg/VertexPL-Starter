@@ -31371,9 +31371,14 @@ alpinejs__WEBPACK_IMPORTED_MODULE_0__["default"].start();
 document.addEventListener('DOMContentLoaded', function () {
   // Keep date/time controls in Laravel's canonical formats while presenting
   // Thai dates and a stable 24-hour clock regardless of browser locale.
-  document.querySelectorAll('input[type="date"], input[type="time"], input[type="datetime-local"]').forEach(function (field) {
+  document.querySelectorAll('input[type="date"], input[type="time"], input[type="datetime-local"]').forEach(function (field, index) {
     var timeOnly = field.type === 'time';
     var dateTime = field.type === 'datetime-local';
+    if (!field.id) {
+      var fallbackId = "localized-temporal-".concat(index + 1);
+      while (document.getElementById(fallbackId)) fallbackId += '-field';
+      field.id = fallbackId;
+    }
     var submittedValue = document.createElement('input');
     submittedValue.type = 'hidden';
     submittedValue.name = field.name;
@@ -31644,12 +31649,14 @@ function attachThaiCalendar(wrap, field, dateTime, trigger) {
   var weekdays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
   var calendar = document.createElement('div');
   calendar.className = 'localized-calendar';
+  calendar.id = "".concat(field.id, "-calendar");
   calendar.hidden = true;
   calendar.setAttribute('role', 'dialog');
   calendar.setAttribute('aria-label', 'ปฏิทินเลือกวันที่');
   calendar.innerHTML = "\n        <div class=\"localized-calendar__header\">\n            <button type=\"button\" class=\"localized-calendar__nav\" data-calendar-previous aria-label=\"\u0E40\u0E14\u0E37\u0E2D\u0E19\u0E01\u0E48\u0E2D\u0E19\u0E2B\u0E19\u0E49\u0E32\">\u2039</button>\n            <h2 class=\"localized-calendar__title\" aria-live=\"polite\" aria-atomic=\"true\"></h2>\n            <button type=\"button\" class=\"localized-calendar__nav\" data-calendar-next aria-label=\"\u0E40\u0E14\u0E37\u0E2D\u0E19\u0E16\u0E31\u0E14\u0E44\u0E1B\">\u203A</button>\n        </div>\n        <div class=\"localized-calendar__grid\" role=\"grid\">\n            <div class=\"localized-calendar__weekdays\" role=\"row\"></div>\n            <div class=\"localized-calendar__days\" role=\"rowgroup\"></div>\n        </div>\n        <div class=\"localized-calendar__footer\">\n            <button type=\"button\" class=\"localized-calendar__text-button\" data-calendar-clear>\u0E25\u0E49\u0E32\u0E07\u0E04\u0E48\u0E32</button>\n            <button type=\"button\" class=\"localized-calendar__text-button\" data-calendar-today>\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49</button>\n        </div>";
   wrap.append(calendar);
   var title = calendar.querySelector('.localized-calendar__title');
+  trigger.setAttribute('aria-controls', calendar.id);
   var weekdayRow = calendar.querySelector('.localized-calendar__weekdays');
   var daysGrid = calendar.querySelector('.localized-calendar__days');
   var today = bangkokTodayIso();
@@ -31799,12 +31806,14 @@ function attachThaiCalendar(wrap, field, dateTime, trigger) {
 function attachThaiTimePicker(wrap, field, trigger) {
   var picker = document.createElement('div');
   picker.className = 'localized-time-picker';
+  picker.id = "".concat(field.id, "-time-picker");
   picker.hidden = true;
   picker.setAttribute('role', 'dialog');
   picker.setAttribute('aria-label', 'เลือกเวลาแบบ 24 ชั่วโมง');
-  picker.innerHTML = "\n        <h2 class=\"localized-time-picker__title\">\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E40\u0E27\u0E25\u0E32 (24 \u0E0A\u0E31\u0E48\u0E27\u0E42\u0E21\u0E07)</h2>\n        <div class=\"localized-time-picker__fields\">\n            <label>\u0E0A\u0E31\u0E48\u0E27\u0E42\u0E21\u0E07<select data-time-hour aria-label=\"\u0E0A\u0E31\u0E48\u0E27\u0E42\u0E21\u0E07\"></select></label>\n            <span aria-hidden=\"true\">:</span>\n            <label>\u0E19\u0E32\u0E17\u0E35<select data-time-minute aria-label=\"\u0E19\u0E32\u0E17\u0E35\"></select></label>\n        </div>\n        <div class=\"localized-time-picker__footer\">\n            <button type=\"button\" class=\"localized-calendar__text-button\" data-time-clear>\u0E25\u0E49\u0E32\u0E07</button>\n            <button type=\"button\" class=\"localized-time-picker__apply\" data-time-apply>\u0E43\u0E0A\u0E49\u0E40\u0E27\u0E25\u0E32\u0E19\u0E35\u0E49</button>\n        </div>";
+  picker.innerHTML = "\n        <h2 class=\"localized-time-picker__title\">\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E40\u0E27\u0E25\u0E32 (24 \u0E0A\u0E31\u0E48\u0E27\u0E42\u0E21\u0E07)</h2>\n        <div class=\"localized-time-picker__fields\">\n            <label for=\"".concat(field.id, "-hour\">\u0E0A\u0E31\u0E48\u0E27\u0E42\u0E21\u0E07<select id=\"").concat(field.id, "-hour\" data-time-hour></select></label>\n            <span aria-hidden=\"true\">:</span>\n            <label for=\"").concat(field.id, "-minute\">\u0E19\u0E32\u0E17\u0E35<select id=\"").concat(field.id, "-minute\" data-time-minute></select></label>\n        </div>\n        <div class=\"localized-time-picker__footer\">\n            <button type=\"button\" class=\"localized-calendar__text-button\" data-time-clear>\u0E25\u0E49\u0E32\u0E07</button>\n            <button type=\"button\" class=\"localized-time-picker__apply\" data-time-apply>\u0E43\u0E0A\u0E49\u0E40\u0E27\u0E25\u0E32\u0E19\u0E35\u0E49</button>\n        </div>");
   var hours = picker.querySelector('[data-time-hour]');
   var minutes = picker.querySelector('[data-time-minute]');
+  trigger.setAttribute('aria-controls', picker.id);
   for (var hour = 0; hour < 24; hour += 1) {
     var option = document.createElement('option');
     option.value = String(hour).padStart(2, '0');

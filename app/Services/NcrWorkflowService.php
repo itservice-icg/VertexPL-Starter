@@ -20,7 +20,6 @@ use App\Models\NcrClosure;
 use App\Models\NcrCorrectiveActionCycle;
 use App\Models\NcrCorrectiveActionPlanSnapshot;
 use App\Models\Product;
-use App\Models\Customer;
 use App\Models\Supplier;
 use App\Events\NcrWorkflowActivity;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -200,6 +199,7 @@ class NcrWorkflowService
             return DB::transaction(function () use ($report, $actor, $data, $version, $attachments, &$storedPaths) {
                 $lockedReport = $this->lockReportForAction($report, $version, ['DISPOSITION_APPROVED']);
                 $responsibleDepartmentId = $this->approvedResponsibleDepartmentId($lockedReport);
+                $this->assertActionActorDepartment($actor, $responsibleDepartmentId);
                 $this->assertSubmittedActionDepartment($data, $responsibleDepartmentId);
                 $this->assertValidActionOwner($data['owner_user_id'] ?? null, $responsibleDepartmentId);
                 $this->assertActionAttachmentLimit(0, count($attachments));
@@ -247,6 +247,7 @@ class NcrWorkflowService
                 }
 
                 $responsibleDepartmentId = $this->approvedResponsibleDepartmentId($lockedReport);
+                $this->assertActionActorDepartment($actor, $responsibleDepartmentId);
                 abort_unless((int) $lockedAction->responsible_department_id === $responsibleDepartmentId, 409);
                 $this->assertSubmittedActionDepartment($data, $responsibleDepartmentId);
                 if ($lockedReport->current_status === 'DISPOSITION_APPROVED') {
@@ -307,6 +308,7 @@ class NcrWorkflowService
         return DB::transaction(function () use ($report, $actor, $version) {
             $locked = $this->lockReportForAction($report, $version, ['DISPOSITION_APPROVED']);
             $departmentId = $this->approvedResponsibleDepartmentId($locked);
+            $this->assertActionActorDepartment($actor, $departmentId);
             $actions = $this->currentCycleActions($locked)->with('attachments')->lockForUpdate()->get();
             if ($actions->isEmpty() || $actions->contains(fn (NcrCorrectiveAction $action) => ! in_array($action->action_status, ['OPEN', 'REJECTED'], true))) {
                 throw new ConflictHttpException('Corrective Action ไม่อยู่ในสถานะที่ส่งอนุมัติได้');
@@ -400,6 +402,7 @@ class NcrWorkflowService
         return DB::transaction(function () use ($report, $actor, $version) {
             $lockedReport = $this->lockReportForAction($report, $version, ['ACTION_IN_PROGRESS']);
             $responsibleDepartmentId = $this->approvedResponsibleDepartmentId($lockedReport);
+            $this->assertActionActorDepartment($actor, $responsibleDepartmentId);
             $actions = $this->currentCycleActions($lockedReport)->with('attachments')->lockForUpdate()->get();
             if ($actions->isEmpty()) {
                 throw ValidationException::withMessages(['actions' => 'ต้องมี Corrective Action อย่างน้อย 1 รายการ']);
@@ -498,6 +501,7 @@ class NcrWorkflowService
             }
 
             $responsibleDepartmentId = $this->approvedResponsibleDepartmentId($lockedReport);
+            $this->assertActionActorDepartment($actor, $responsibleDepartmentId);
             $previousCycle = $lockedReport->currentCorrectiveActionCycle()->lockForUpdate()->first();
             if ($previousCycle && $previousCycle->status !== 'APPROVED') {
                 throw new ConflictHttpException('ไม่พบรอบ Corrective Action ที่อนุมัติแล้วสำหรับเริ่ม Rework');
@@ -615,6 +619,14 @@ class NcrWorkflowService
         if (! $ownerUserId || ! User::query()->whereKey($ownerUserId)->where('is_active', true)->where('department_id', $responsibleDepartmentId)->exists()) {
             throw ValidationException::withMessages(['owner_user_id' => 'กรุณาเลือกผู้รับผิดชอบจากหน่วยงานที่ได้รับมอบหมาย']);
         }
+    }
+
+    private function assertActionActorDepartment(User $actor, int $responsibleDepartmentId): void
+    {
+        abort_unless(
+            $actor->hasRole('Super Admin') || (int) $actor->department_id === $responsibleDepartmentId,
+            403
+        );
     }
 
     private function actionAttributes(NcrReport $report, User $actor, array $data, int $actionNo, bool $creating = true): array
@@ -825,70 +837,61 @@ class NcrWorkflowService
     }
     private function syncItems(NcrReport $report, array $items, User $actor): void
     {
-        $existingItems = $report->items()->get()->keyBy('id');
-        $retainedIds = [];
-        $lineOffset = (int) $existingItems->max('line_no') + count($items) + 1;
-
-        foreach ($existingItems as $existing) {
-            $existing->update(['line_no' => (int) $existing->line_no + $lineOffset]);
+        if (count($items) !== 1) {
+            throw ValidationException::withMessages(['items' => 'NCR หนึ่งรายการต้องมีสินค้าเพียง 1 รายการ']);
         }
 
-        foreach (array_values($items) as $index => $item) {
-            $itemId = $item['_item_id'] ?? null;
-            unset($item['_item_id']);
+        $item = array_values($items)[0];
+        $itemId = $item['_item_id'] ?? null;
+        unset($item['_item_id']);
 
-            if ($itemId && $existingItems->has($itemId)) {
-                $existing = $existingItems->get($itemId);
-                $existing->update($item + ['line_no' => $index + 1]);
-                $retainedIds[] = (int) $existing->id;
-                continue;
+        $existing = $report->items()->first();
+        if ($existing) {
+            if ($itemId && (int) $itemId !== (int) $existing->id) {
+                throw ValidationException::withMessages(['items.0.item_id' => 'รายการสินค้าไม่ตรงกับ NCR นี้']);
             }
 
-            $created = $report->items()->create($item + ['line_no' => $index + 1, 'created_by' => $actor->id]);
-            $retainedIds[] = (int) $created->id;
+            $existing->update($item + ['line_no' => 1]);
+            return;
         }
 
-        $report->items()->whereNotIn('id', $retainedIds)->delete();
+        if ($itemId) {
+            throw ValidationException::withMessages(['items.0.item_id' => 'ไม่พบรายการสินค้าใน NCR นี้']);
+        }
+
+        $report->items()->create($item + ['line_no' => 1, 'created_by' => $actor->id]);
     }
     private function snapshotItemReferences(?NcrReport $report, array $items): array
     {
-        $existingItems = $report ? $report->items()->get()->keyBy('id') : collect();
-
-        foreach ($items as $index => $item) {
-            $existing = ! empty($item['item_id']) ? $existingItems->get((int) $item['item_id']) : null;
-            $productId = isset($item['product_id']) ? (int) $item['product_id'] : null;
-            $customerId = isset($item['customer_id']) ? (int) $item['customer_id'] : null;
-
-            if ($productId && $existing && (int) $existing->product_id === $productId) {
-                $items[$index]['product_code'] = $existing->product_code;
-                $items[$index]['product_name'] = $existing->product_name;
-            } elseif ($productId) {
-                $product = Product::query()->where('is_active', true)->find($productId);
-                if (! $product) throw ValidationException::withMessages(["items.{$index}.product_id" => 'กรุณาเลือกสินค้าที่เปิดใช้งาน']);
-                $items[$index]['product_code'] = $product->code;
-                $items[$index]['product_name'] = $product->name_th;
-            } elseif ($existing) {
-                $items[$index]['product_code'] = $existing->product_code;
-                $items[$index]['product_name'] = $existing->product_name;
-            }
-
-            if ($customerId && $existing && (int) $existing->customer_id === $customerId) {
-                $items[$index]['customer_name'] = $existing->customer_name;
-            } elseif ($customerId) {
-                $customer = Customer::query()->where('is_active', true)->find($customerId);
-                if (! $customer) throw ValidationException::withMessages(["items.{$index}.customer_id" => 'กรุณาเลือกลูกค้าที่เปิดใช้งาน']);
-                $items[$index]['customer_name'] = $customer->name_th;
-            } elseif ($existing && ! $existing->customer_id) {
-                $items[$index]['customer_name'] = $existing->customer_name;
-            } else {
-                $items[$index]['customer_name'] = null;
-            }
-
-            $items[$index]['_item_id'] = $items[$index]['item_id'] ?? null;
-            unset($items[$index]['item_id']);
+        if (count($items) !== 1) {
+            throw ValidationException::withMessages(['items' => 'NCR หนึ่งรายการต้องมีสินค้าเพียง 1 รายการ']);
         }
 
-        return $items;
+        $items = array_values($items);
+        $item = $items[0];
+        $existing = $report ? $report->items()->first() : null;
+        $requestedItemId = $item['item_id'] ?? null;
+        if ($requestedItemId && (! $existing || (int) $requestedItemId !== (int) $existing->id)) {
+            throw ValidationException::withMessages(['items.0.item_id' => 'ไม่พบรายการสินค้าใน NCR นี้']);
+        }
+
+        $productId = isset($item['product_id']) ? (int) $item['product_id'] : null;
+        if ($productId && $existing && (int) $existing->product_id === $productId) {
+            $item['product_code'] = $existing->product_code;
+            $item['product_name'] = $existing->product_name;
+        } elseif ($productId) {
+            $product = Product::query()->where('is_active', true)->find($productId);
+            if (! $product) {
+                throw ValidationException::withMessages(['items.0.product_id' => 'กรุณาเลือกสินค้าที่เปิดใช้งาน']);
+            }
+            $item['product_code'] = $product->code;
+            $item['product_name'] = $product->name_th;
+        }
+
+        $item['_item_id'] = $existing ? (int) $existing->id : null;
+        unset($item['item_id'], $item['customer_id'], $item['customer_name']);
+
+        return [$item];
     }
 
     private function snapshotSupplierReference(array $data, ?NcrReport $report): array

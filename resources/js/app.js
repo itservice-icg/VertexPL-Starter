@@ -53,9 +53,14 @@ Alpine.start();
 document.addEventListener('DOMContentLoaded', () => {
     // Keep date/time controls in Laravel's canonical formats while presenting
     // Thai dates and a stable 24-hour clock regardless of browser locale.
-    document.querySelectorAll('input[type="date"], input[type="time"], input[type="datetime-local"]').forEach((field) => {
+    document.querySelectorAll('input[type="date"], input[type="time"], input[type="datetime-local"]').forEach((field, index) => {
         const timeOnly = field.type === 'time';
         const dateTime = field.type === 'datetime-local';
+        if (! field.id) {
+            let fallbackId = `localized-temporal-${index + 1}`;
+            while (document.getElementById(fallbackId)) fallbackId += '-field';
+            field.id = fallbackId;
+        }
 
         const submittedValue = document.createElement('input');
         submittedValue.type = 'hidden';
@@ -330,6 +335,7 @@ function attachThaiCalendar(wrap, field, dateTime, trigger) {
     const weekdays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
     const calendar = document.createElement('div');
     calendar.className = 'localized-calendar';
+    calendar.id = `${field.id}-calendar`;
     calendar.hidden = true;
     calendar.setAttribute('role', 'dialog');
     calendar.setAttribute('aria-label', 'ปฏิทินเลือกวันที่');
@@ -350,6 +356,7 @@ function attachThaiCalendar(wrap, field, dateTime, trigger) {
     wrap.append(calendar);
 
     const title = calendar.querySelector('.localized-calendar__title');
+    trigger.setAttribute('aria-controls', calendar.id);
     const weekdayRow = calendar.querySelector('.localized-calendar__weekdays');
     const daysGrid = calendar.querySelector('.localized-calendar__days');
     const today = bangkokTodayIso();
@@ -490,15 +497,16 @@ function attachThaiCalendar(wrap, field, dateTime, trigger) {
 function attachThaiTimePicker(wrap, field, trigger) {
     const picker = document.createElement('div');
     picker.className = 'localized-time-picker';
+    picker.id = `${field.id}-time-picker`;
     picker.hidden = true;
     picker.setAttribute('role', 'dialog');
     picker.setAttribute('aria-label', 'เลือกเวลาแบบ 24 ชั่วโมง');
     picker.innerHTML = `
         <h2 class="localized-time-picker__title">เลือกเวลา (24 ชั่วโมง)</h2>
         <div class="localized-time-picker__fields">
-            <label>ชั่วโมง<select data-time-hour aria-label="ชั่วโมง"></select></label>
+            <label for="${field.id}-hour">ชั่วโมง<select id="${field.id}-hour" data-time-hour></select></label>
             <span aria-hidden="true">:</span>
-            <label>นาที<select data-time-minute aria-label="นาที"></select></label>
+            <label for="${field.id}-minute">นาที<select id="${field.id}-minute" data-time-minute></select></label>
         </div>
         <div class="localized-time-picker__footer">
             <button type="button" class="localized-calendar__text-button" data-time-clear>ล้าง</button>
@@ -506,6 +514,7 @@ function attachThaiTimePicker(wrap, field, trigger) {
         </div>`;
     const hours = picker.querySelector('[data-time-hour]');
     const minutes = picker.querySelector('[data-time-minute]');
+    trigger.setAttribute('aria-controls', picker.id);
     for (let hour = 0; hour < 24; hour += 1) {
         const option = document.createElement('option');
         option.value = String(hour).padStart(2, '0');

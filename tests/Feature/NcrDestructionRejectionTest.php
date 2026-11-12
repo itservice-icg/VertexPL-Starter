@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\Customer;
 use App\Models\DispositionType;
 use App\Models\NcrReport;
 use App\Models\ProblemType;
@@ -19,6 +20,7 @@ class NcrDestructionRejectionTest extends TestCase
     use RefreshDatabase;
 
     private Department $department;
+    private Customer $customer;
     private ProblemType $problem;
     private SeverityLevel $severity;
     private DispositionType $scrapDisposition;
@@ -33,6 +35,11 @@ class NcrDestructionRejectionTest extends TestCase
         $this->department = Department::create([
             'code' => 'OPS',
             'name_th' => 'Operations',
+            'is_active' => true,
+        ]);
+        $this->customer = Customer::create([
+            'code' => 'C001',
+            'name_th' => 'Test Customer',
             'is_active' => true,
         ]);
         $this->problem = ProblemType::create([
@@ -274,6 +281,7 @@ class NcrDestructionRejectionTest extends TestCase
             'found_date' => now()->format('Y-m-d'),
             'problem_type_id' => $this->problem->id,
             'severity_level_id' => $this->severity->id,
+            'customer_id' => $this->customer->id,
             'problem_description' => 'พบความผิดปกติ',
             'items' => [[
                 'product_id' => Product::firstOrFail()->id,

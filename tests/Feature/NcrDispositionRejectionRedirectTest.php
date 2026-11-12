@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\Customer;
 use App\Models\DispositionType;
 use App\Models\NcrReport;
 use App\Models\ProblemType;
@@ -19,6 +20,7 @@ class NcrDispositionRejectionRedirectTest extends TestCase
     use RefreshDatabase;
 
     private Department $department;
+    private Customer $customer;
     private ProblemType $problemType;
     private SeverityLevel $severity;
     private DispositionType $dispositionType;
@@ -29,6 +31,7 @@ class NcrDispositionRejectionRedirectTest extends TestCase
         Unit::create(['code' => 'PCS', 'name_th' => 'ชิ้น', 'is_active' => true]);
         Product::create(['code' => 'P001', 'name_th' => 'Test Product', 'is_active' => true]);
         $this->department = Department::create(['code' => 'QA', 'name_th' => 'Quality Assurance', 'is_active' => true]);
+        $this->customer = Customer::create(['code' => 'C001', 'name_th' => 'Test Customer', 'is_active' => true]);
         $this->problemType = ProblemType::create(['code' => 'PROCESS', 'name_th' => 'Process', 'is_active' => true]);
         $this->severity = SeverityLevel::create(['code' => 'HIGH', 'name_th' => 'High', 'is_active' => true]);
         $this->dispositionType = DispositionType::create(['code' => 'REWORK', 'name_th' => 'Rework', 'is_active' => true]);
@@ -88,6 +91,7 @@ class NcrDispositionRejectionRedirectTest extends TestCase
             'found_date' => now()->format('Y-m-d'),
             'problem_type_id' => $this->problemType->id,
             'severity_level_id' => $this->severity->id,
+            'customer_id' => $this->customer->id,
             'problem_description' => 'Disposition rejection redirect fixture.',
             'items' => [[
                 'product_id' => Product::firstOrFail()->id,

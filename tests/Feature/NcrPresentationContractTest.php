@@ -92,7 +92,7 @@ class NcrPresentationContractTest extends TestCase
 
         $this->assertIsString($reportForm);
         $this->assertStringContainsString('name="problem_description"', $reportForm);
-        $this->assertStringContainsString('items[${index}][problem_description]', $reportForm);
+        $this->assertStringContainsString('name="items[0][problem_description]"', $reportForm);
     }
 
     public function test_corrective_action_dialog_keeps_scrollable_content_and_actions_visible(): void
@@ -114,7 +114,7 @@ class NcrPresentationContractTest extends TestCase
         $this->assertStringContainsString('ncr-create-page', $reportForm);
         $this->assertStringContainsString('ncr-create-form space-y-4', $reportForm);
         $this->assertStringContainsString('ncr-compact-grid', $reportForm);
-        $this->assertStringContainsString('ncr-items-table', $reportForm);
+        $this->assertStringContainsString('ncr-form-items', $reportForm);
         $this->assertStringContainsString('ncr-description-grid', $reportForm);
         $this->assertStringContainsString('ncr-create-heading', $reportForm);
         $this->assertStringContainsString('ncr-form-section--compact', $reportForm);
@@ -126,9 +126,9 @@ class NcrPresentationContractTest extends TestCase
         foreach ([
             'name="problem_description"',
             'name="attachments[]"',
-            ':name="`items[${index}][product_name]`"',
-            ':name="`items[${index}][defect_quantity]`"',
-            ':name="`items[${index}][total_quantity]`"',
+            'name="items[0][product_name]"',
+            'name="items[0][defect_quantity]"',
+            'name="items[0][total_quantity]"',
             'data-ncr-submit',
         ] as $contract) {
             $this->assertStringContainsString($contract, $reportForm);
@@ -179,22 +179,37 @@ class NcrPresentationContractTest extends TestCase
         $this->assertStringContainsString('@if($canEditAction)', $correctiveActionsView);
     }
 
-    public function test_product_items_are_edited_in_a_native_dialog_and_keep_the_submission_contract(): void
+    public function test_product_form_uses_one_inline_item_and_keeps_the_single_item_submission_contract(): void
     {
         $reportForm = file_get_contents(resource_path('views/ncr/form.blade.php'));
 
         $this->assertIsString($reportForm);
-        $this->assertStringContainsString('<dialog x-ref="itemDialog" x-on:close="itemDialogOpen = false"', $reportForm);
-        $this->assertStringContainsString('disabled x-bind:disabled="!itemDialogOpen"', $reportForm);
-        $this->assertStringContainsString('this.$refs.itemDialog.showModal()', $reportForm);
-        $this->assertStringContainsString('x-on:click="saveItem()"', $reportForm);
-        $this->assertStringContainsString('x-on:click="editItem(index)"', $reportForm);
-        $this->assertStringContainsString('x-show="items.length === 0"', $reportForm);
-        $this->assertStringContainsString('ยังไม่มีรายการสินค้า', $reportForm);
+        $this->assertStringNotContainsString('<dialog x-ref="itemDialog"', $reportForm);
+        $this->assertStringNotContainsString('items.length >= 50', $reportForm);
+        $this->assertStringNotContainsString('+ เพิ่มรายการสินค้า', $reportForm);
+        $this->assertStringNotContainsString('สูงสุด 50 รายการ', $reportForm);
+        $this->assertStringContainsString('name="items[0][product_name]"', $reportForm);
+        $this->assertStringContainsString('name="items[0][product_code]"', $reportForm);
+        $this->assertStringContainsString('name="items[0][defect_quantity]"', $reportForm);
+        $this->assertStringContainsString('name="items[0][total_quantity]"', $reportForm);
+        $this->assertStringContainsString('name="customer_id"', $reportForm);
+        $this->assertStringContainsString('selectProduct($event.target.value)', $reportForm);
+        $this->assertStringContainsString('x-text="percentage()"', $reportForm);
+        $this->assertStringContainsString('0.00%', $reportForm);
         $this->assertStringContainsString("                    : [];", $reportForm);
-        $this->assertStringContainsString(':name="`items[${index}][product_name]`"', $reportForm);
-        $this->assertStringContainsString(':name="`items[${index}][problem_description]`"', $reportForm);
         $this->assertStringNotContainsString('min-w-[1900px]', $reportForm);
+    }
+
+    public function test_ncr_detail_and_pdf_select_only_one_product_record(): void
+    {
+        $showView = file_get_contents(resource_path('views/ncr/show.blade.php'));
+        $pdfView = file_get_contents(resource_path('views/ncr/pdf.blade.php'));
+
+        $this->assertIsString($showView);
+        $this->assertIsString($pdfView);
+        $this->assertStringContainsString('$ncr->items->take(1)', $showView);
+        $this->assertStringContainsString('$item = $ncr->items->first();', $pdfView);
+        $this->assertStringContainsString('$customerName = $ncr->company_name;', $pdfView);
     }
 
     public function test_stage_one_report_uses_a_compact_accessible_summary(): void

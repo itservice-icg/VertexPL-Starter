@@ -31,7 +31,7 @@ abstract class NcrMasterData extends Model
             DispositionType::class => [['ncr_dispositions', 'disposition_type_id']],
             RootCauseType::class => [['ncr_corrective_actions', 'root_cause_type_id']],
             Product::class => [['ncr_items', 'product_id']],
-            Customer::class => [['ncr_items', 'customer_id']],
+            Customer::class => [['ncr_reports', 'customer_id']],
             Supplier::class => [['ncr_reports', 'supplier_id']],
             NcrFormScope::class => [['ncr_reports', 'legacy_form_scope_code', 'code']],
         ];

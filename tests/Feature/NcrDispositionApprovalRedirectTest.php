@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\Customer;
 use App\Models\DispositionType;
 use App\Models\NcrReport;
 use App\Models\ProblemType;
@@ -23,6 +24,7 @@ class NcrDispositionApprovalRedirectTest extends TestCase
     private ProblemType $problemType;
     private SeverityLevel $severity;
     private DispositionType $dispositionType;
+    private Customer $customer;
 
     protected function setUp(): void
     {
@@ -30,6 +32,7 @@ class NcrDispositionApprovalRedirectTest extends TestCase
 
         Unit::create(['code' => 'PCS', 'name_th' => 'ชิ้น', 'is_active' => true]);
         Product::create(['code' => 'P001', 'name_th' => 'Test Product', 'is_active' => true]);
+        $this->customer = Customer::create(['code' => 'C001', 'name_th' => 'Test Customer', 'is_active' => true]);
 
         $this->reporterDepartment = Department::create([
             'code' => 'QA-APP',
@@ -68,6 +71,7 @@ class NcrDispositionApprovalRedirectTest extends TestCase
             'problem_type_id' => $this->problemType->id,
             'severity_level_id' => $this->severity->id,
             'problem_description' => 'Disposition approval redirect fixture.',
+            'customer_id' => $this->customer->id,
             'items' => [[
                 'product_id' => Product::firstOrFail()->id,
                 'product_name' => 'Test Product',

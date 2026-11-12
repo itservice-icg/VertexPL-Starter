@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\NcrReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,7 +21,7 @@ class SaveCorrectiveActionRequest extends FormRequest
             'corrective_action_detail' => ['required', 'string', 'max:10000'],
             'preventive_action_detail' => ['nullable', 'string', 'max:10000'],
             'responsible_department_id' => ['required', Rule::exists('departments', 'id')->where('is_active', 1)],
-            'owner_user_id' => [Rule::requiredIf(fn () => $this->route('ncr')?->current_status !== 'ACTION_IN_PROGRESS'), 'nullable', Rule::exists('users', 'id')->where('is_active', 1)->where('department_id', $this->input('responsible_department_id'))],
+            'owner_user_id' => [Rule::requiredIf(fn () => $this->requiresActionOwner()), 'nullable', Rule::exists('users', 'id')->where('is_active', 1)->where('department_id', $this->input('responsible_department_id'))],
             'responsible_acknowledged_at' => ['nullable', 'date'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:start_date'],
@@ -30,6 +31,13 @@ class SaveCorrectiveActionRequest extends FormRequest
             'attachments' => ['nullable', 'array', 'max:10'],
             'attachments.*' => ['file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,xlsx,docx'],
         ];
+    }
+
+    private function requiresActionOwner(): bool
+    {
+        $report = $this->route('ncr');
+
+        return ! ($report instanceof NcrReport && $report->current_status === 'ACTION_IN_PROGRESS');
     }
 
 }

@@ -15,6 +15,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class NcrPhaseFiveTest extends TestCase
@@ -217,6 +218,16 @@ class NcrPhaseFiveTest extends TestCase
         ]);
         $report->refresh();
 
+        NcrApproval::create([
+            'ncr_report_id' => $report->id,
+            'disposition_id' => $report->dispositions()->value('id'),
+            'approval_stage' => 'CORRECTIVE_ACTION_APPROVAL',
+            'approval_level' => 1,
+            'approver_id' => $verifier->id,
+            'decision' => 'APPROVED',
+            'decided_at' => now(),
+        ]);
+
         $otherDepartment = Department::create(['code' => 'OTHER', 'name_th' => 'หน่วยงานอื่น', 'is_active' => true]);
         $outsider = $this->user(['ncr.action.manage'], $otherDepartment);
         $this->actingAs($outsider)->post(route('ncr.corrective-actions.start-rework', $report), ['version_no' => $report->version_no])->assertForbidden();
@@ -351,7 +362,17 @@ class NcrPhaseFiveTest extends TestCase
         $report->refresh();
         $this->assertSame('RETURNED_FOR_REWORK', $report->current_status);
 
-        $this->actingAs($responsible)->post(route('ncr.corrective-actions.start-rework', $report), ['version_no' => $report->version_no])->assertRedirect();
+        $otherDepartment = Department::create(['code' => 'REWORK-OTHER', 'name_th' => 'ฝ่ายอื่น', 'is_active' => true]);
+        $outsider = $this->user(['ncr.action.manage'], $otherDepartment);
+        $this->actingAs($outsider)
+            ->post(route('ncr.corrective-actions.start-rework', $report), ['version_no' => $report->version_no])
+            ->assertForbidden();
+
+        $superAdmin = $this->user([], $otherDepartment);
+        $superAdmin->assignRole(Role::create(['name' => 'Super Admin', 'guard_name' => 'web']));
+        $this->actingAs($superAdmin)
+            ->post(route('ncr.corrective-actions.start-rework', $report), ['version_no' => $report->version_no])
+            ->assertRedirect();
         $report->refresh();
 
         $cycleTwo = NcrCorrectiveActionCycle::query()->where('ncr_report_id', $report->id)->where('cycle_no', 2)->firstOrFail();
@@ -643,6 +664,7 @@ class NcrPhaseFiveTest extends TestCase
             'action_type' => 'CORRECTIVE',
             'corrective_action_detail' => 'แก้ไขสาเหตุแล้ว',
             'responsible_department_id' => $this->department->id,
+            'owner_user_id' => $reporter->id,
             'start_date' => now()->toDateString(),
             'due_date' => now()->addDays(7)->toDateString(),
             'completed_date' => now()->toDateString(),
@@ -653,6 +675,8 @@ class NcrPhaseFiveTest extends TestCase
             'created_by' => $reporter->id,
             'updated_by' => $reporter->id,
         ]);
+
+        Storage::disk('local')->put('ncr/test/evidence.pdf', 'test evidence');
 
         NcrActionAttachment::create([
             'corrective_action_id' => $action->id,
