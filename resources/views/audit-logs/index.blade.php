@@ -47,10 +47,11 @@
                 </div>
             </div>
 
-            <details class="mt-4 rounded-lg border border-slate-200 px-4 py-3" @if (request()->filled('module') || request()->filled('action') || request()->filled('date_from') || request()->filled('date_to') || $errors->hasAny(['module', 'action', 'date_from', 'date_to'])) open @endif>
+            <details class="dropdown-disclosure mt-4 rounded-lg border border-slate-200 px-4 py-3" @if (request()->filled('module') || request()->filled('action') || request()->filled('date_from') || request()->filled('date_to') || $errors->hasAny(['module', 'action', 'date_from', 'date_to'])) open @endif>
                 <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
                     <span>ตัวกรองเพิ่มเติม</span>
                     <span class="text-xs font-normal text-slate-500">หมวด การดำเนินการ และช่วงวันที่</span>
+                    <i class="ph ph-caret-down dropdown-chevron" aria-hidden="true"></i>
                 </summary>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <div>
@@ -122,8 +123,8 @@
                                     <td class="max-w-sm px-5 py-4 text-sm text-slate-600">{{ $log->description }}</td>
                                     <td class="whitespace-nowrap px-5 py-4 font-mono text-xs text-slate-500">{{ $log->ip_address ?: '-' }}</td>
                                     <td class="px-5 py-4 text-right">
-                                        <details class="relative inline-block text-left">
-                                            <summary class="cursor-pointer list-none rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">ดูรายละเอียด</summary>
+                                        <details class="dropdown-disclosure relative inline-block text-left">
+                                            <summary class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">ดูรายละเอียด<i class="ph ph-caret-down dropdown-chevron" aria-hidden="true"></i></summary>
                                             <div class="mt-2 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl">
                                                 @include('audit-logs.partials.detail', ['log' => $log])
                                             </div>
@@ -155,8 +156,8 @@
                                 <span>อีเมล: {{ optional($log->actor)->email ?: '-' }}</span>
                                 <span>IP: <span class="font-mono">{{ $log->ip_address ?: '-' }}</span></span>
                             </div>
-                            <details class="mt-3">
-                                <summary class="cursor-pointer text-xs font-semibold text-indigo-600">ดูรายละเอียด</summary>
+                            <details class="dropdown-disclosure mt-3">
+                                <summary class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-indigo-600">ดูรายละเอียด<i class="ph ph-caret-down dropdown-chevron" aria-hidden="true"></i></summary>
                                 <div class="mt-3 rounded-lg bg-slate-50 p-3">
                                     @include('audit-logs.partials.detail', ['log' => $log])
                                 </div>

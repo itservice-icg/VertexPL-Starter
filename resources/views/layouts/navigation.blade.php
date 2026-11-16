@@ -54,13 +54,13 @@
             </a>
             @can('ncr.master.manage')
                 @php($isNcrMasterMenuActive = request()->routeIs('ncr-masters.*'))
-                <details class="ncr-master-navigation" data-ncr-master-navigation>
+                <details class="dropdown-disclosure ncr-master-navigation" data-ncr-master-navigation>
                     <summary class="{{ $isNcrMasterMenuActive ? 'bg-slate-800 text-white' : 'text-slate-200 hover:bg-slate-800 hover:text-white' }} flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2.5 pl-11 text-sm font-semibold transition">
                         <span class="flex min-w-0 items-center gap-3">
                             <i class="ph ph-notebook h-4 w-4 shrink-0 text-base leading-none" aria-hidden="true"></i>
                             <span>ข้อมูลหลัก NCR</span>
                         </span>
-                        <i class="ph ph-caret-down ncr-master-navigation__chevron h-4 w-4 shrink-0 text-base leading-none" aria-hidden="true"></i>
+                        <i class="ph ph-caret-down dropdown-chevron" aria-hidden="true"></i>
                     </summary>
                     <div class="mt-1 space-y-1">
                         @foreach(config('ncr.masters') as $masterType => $master)
@@ -97,13 +97,13 @@
 
         @if (auth()->user()->can('users.view') || auth()->user()->can('departments.view') || auth()->user()->can('roles.view') || auth()->user()->can('department-roles.manage'))
             @php($isUserAdminMenuActive = request()->routeIs('users.*', 'departments.*', 'roles.*', 'department-roles.*'))
-            <details class="user-admin-navigation" data-user-admin-navigation data-open-by-default="{{ $isUserAdminMenuActive ? 'true' : 'false' }}">
+            <details class="dropdown-disclosure user-admin-navigation" data-user-admin-navigation data-open-by-default="{{ $isUserAdminMenuActive ? 'true' : 'false' }}">
                 <summary class="{{ $isUserAdminMenuActive ? 'bg-slate-800 text-white' : 'text-slate-200 hover:bg-slate-800 hover:text-white' }} flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition">
                     <span class="flex min-w-0 items-center gap-3">
                         <i class="ph ph-users-three h-5 w-5 shrink-0 text-xl leading-none" aria-hidden="true"></i>
                         <span>ผู้ใช้งาน / หน่วยงาน / สิทธิ์</span>
                     </span>
-                    <i class="ph ph-caret-down user-admin-navigation__chevron h-4 w-4 shrink-0 text-base leading-none" aria-hidden="true"></i>
+                    <i class="ph ph-caret-down dropdown-chevron" aria-hidden="true"></i>
                 </summary>
                 <div class="mt-1 space-y-1">
                     @can('users.view')

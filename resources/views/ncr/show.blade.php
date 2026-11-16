@@ -736,8 +736,8 @@
                 </table>
             </div>
         </div>@endif
-        <details id="ncr-status-history" class="ncr-supporting-details mt-6">
-            <summary><span class="text-base font-extrabold">ประวัติการเปลี่ยนสถานะ</span><span class="text-xs font-medium text-slate-500">{{ $ncr->statusHistory->count() }} รายการ</span></summary>
+        <details id="ncr-status-history" class="dropdown-disclosure ncr-supporting-details mt-6">
+            <summary><span class="text-base font-extrabold">ประวัติการเปลี่ยนสถานะ</span><span class="text-xs font-medium text-slate-500">{{ $ncr->statusHistory->count() }} รายการ</span><i class="ph ph-caret-down dropdown-chevron" aria-hidden="true"></i></summary>
             <div class="ncr-supporting-details__body">
                 <ol class="ncr-status-history max-h-96 space-y-4 overflow-y-auto pr-2">@foreach($ncr->statusHistory as $history)<li class="border-l-2 border-indigo-300 pl-4">
                         @php($historyLabel = config('ncr.history_action_labels.'.$history->action_code) ?: config('ncr.status_labels.'.$history->to_status, $history->to_status))
