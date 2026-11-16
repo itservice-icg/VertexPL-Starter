@@ -8,6 +8,7 @@ use Illuminate\Validation\Rule;
 use App\Models\NcrReport;
 use App\Models\Customer;
 use App\Models\NcrFormScope;
+use App\Services\NcrFileUploadService;
 
 class SaveNcrReportRequest extends FormRequest
 {
@@ -82,7 +83,7 @@ class SaveNcrReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'report_date'=>['required','date'],'found_date'=>['required','date','before_or_equal:today'],'found_time'=>['nullable','date_format:H:i'],
+            'report_date'=>['required','date'],'found_date'=>['required','date','before_or_equal:' . now(config('app.display_timezone'))->toDateString()],'found_time'=>['nullable','date_format:H:i'],
             'legacy_form_scope_code'=>['nullable', $this->formScopeRule()],
             'legacy_form_scope_codes'=>['nullable','array','max:1'],
             'legacy_form_scope_codes.*'=>['required', $this->formScopeRule(), 'distinct'],
@@ -95,14 +96,14 @@ class SaveNcrReportRequest extends FormRequest
             'initial_disposition_detail'=>['nullable','string','max:5000'],
             'initial_responsible_department_id'=>['nullable','exists:departments,id'],
             'initial_proposed_due_date'=>['nullable','date'],
-            'version_no'=>['nullable','integer','min:1'],'attachments.*'=>['file','max:10240','mimes:pdf,jpg,jpeg,png,xlsx,xls,docx'],
+            'version_no'=>['nullable','integer','min:1'],'attachments.*'=>['file','max:' . NcrFileUploadService::MAX_KILOBYTES,'mimes:' . implode(',', NcrFileUploadService::ALLOWED_EXTENSIONS)],
             'items'=>['required','array','size:1'],
             'items.0.item_id'=>['nullable','integer','exists:ncr_items,id'],'items.0.product_id'=>['nullable','integer','exists:products,id'],
             'items.0.product_code'=>['nullable','string','max:255'],'items.0.product_name'=>['required','string','max:255'],
             'items.0.lot_no'=>['nullable','string','max:255'],'items.0.po_no'=>['nullable','string','max:255'],'items.0.batch_no'=>['nullable','string','max:255'],
             'items.0.defect_quantity'=>['required','numeric','regex:/^\d{1,14}(?:\.\d{1,4})?$/','min:0','max:99999999999999.9999'],
             'items.0.total_quantity'=>['required','numeric','regex:/^\d{1,14}(?:\.\d{1,4})?$/','gt:0','max:99999999999999.9999'],'items.0.unit_name'=>['nullable',Rule::exists('units','code')],
-            'items.0.defect_unit_name'=>['nullable',Rule::exists('units','code')],'items.0.total_unit_name'=>['nullable',Rule::exists('units','code')],
+            'items.0.defect_unit_name'=>['nullable','required_with:items.0.total_unit_name',Rule::exists('units','code')],'items.0.total_unit_name'=>['nullable','required_with:items.0.defect_unit_name',Rule::exists('units','code'),'same:items.0.defect_unit_name'],
             'items.0.problem_description'=>['nullable','string','max:5000'],
         ];
     }
@@ -184,6 +185,9 @@ class SaveNcrReportRequest extends FormRequest
             'items.0.total_quantity.regex' => 'จำนวนทั้งหมดรองรับทศนิยมไม่เกิน 4 ตำแหน่งและไม่เกิน 14 หลัก',
             'items.0.total_quantity.gt' => 'จำนวนทั้งหมดต้องมากกว่า 0',
             'items.0.total_quantity.max' => 'จำนวนทั้งหมดเกินขอบเขตที่รองรับ',
+            'items.0.defect_unit_name.required_with' => 'กรุณาเลือกหน่วยนับของจำนวนที่พบและจำนวนทั้งหมดให้ครบทั้งสองช่อง',
+            'items.0.total_unit_name.required_with' => 'กรุณาเลือกหน่วยนับของจำนวนที่พบและจำนวนทั้งหมดให้ครบทั้งสองช่อง',
+            'items.0.total_unit_name.same' => 'หน่วยนับของจำนวนที่พบและจำนวนทั้งหมดต้องตรงกัน',
         ];
     }
 }

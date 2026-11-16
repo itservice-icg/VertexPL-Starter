@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\NcrFileUploadService;
 use App\Models\NcrReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,7 +30,7 @@ class SaveCorrectiveActionRequest extends FormRequest
             'action_status' => ['required', 'in:OPEN,IN_PROGRESS,COMPLETED'],
             'completion_note' => ['nullable', 'string', 'max:10000'],
             'attachments' => ['nullable', 'array', 'max:10'],
-            'attachments.*' => ['file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,xlsx,docx'],
+            'attachments.*' => ['file', 'max:' . NcrFileUploadService::MAX_KILOBYTES, 'mimes:' . implode(',', NcrFileUploadService::ALLOWED_EXTENSIONS)],
         ];
     }
 

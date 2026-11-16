@@ -130,8 +130,8 @@ class NcrReportController extends Controller
     }
     public function edit(Request $request, NcrReport $ncr)
     {
-        $this->assertVisible($ncr, $request);
         abort_unless(in_array($ncr->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true), 409);
+        abort_unless($this->workflow->canEditDraft($ncr, $request->user()), 403);
 
         $returnReason = $ncr->current_status === 'RETURNED_FOR_CORRECTION'
             ? trim((string) $ncr->statusHistory()->latest('id')->value('action_note'))
@@ -194,9 +194,13 @@ class NcrReportController extends Controller
 
     private function referenceOptions(string $model, array $currentIds)
     {
-        return $model::withTrashed()
+        $query = $currentIds ? $model::withTrashed() : $model::query();
+
+        return $query
             ->where(function ($query) use ($currentIds) {
-                $query->where('is_active', true);
+                $query->where(function ($activeQuery) {
+                    $activeQuery->where('is_active', true)->whereNull('deleted_at');
+                });
                 if ($currentIds) $query->orWhereIn('id', $currentIds);
             })
             ->orderBy('code')

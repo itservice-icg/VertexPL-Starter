@@ -233,6 +233,8 @@
                             <select
                                 id="problem_type_id"
                                 name="problem_type_id"
+                                aria-invalid="{{ $errors->has('problem_type_id') ? 'true' : 'false' }}"
+                                @if($errors->has('problem_type_id')) aria-describedby="problem-type-error" @endif
                                 class="mt-2 block min-h-[42px] w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:ring-indigo-500"
                                 required>
                                 <option value="">เลือกประเภทที่พบ</option>
@@ -245,6 +247,7 @@
                                 </option>
                                 @endforeach
                             </select>
+                            @error('problem_type_id') <p id="problem-type-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
@@ -396,7 +399,13 @@
             <section id="ncr-products" x-data="{
                 defect: {{ \Illuminate\Support\Js::from(old('items.0.defect_quantity', $initialItem['defect_quantity'] ?? '')) }},
                 total: {{ \Illuminate\Support\Js::from(old('items.0.total_quantity', $initialItem['total_quantity'] ?? '')) }},
+                defectUnit: {{ \Illuminate\Support\Js::from(old('items.0.defect_unit_name', $initialItem['defect_unit_name'] ?? $initialItem['unit_name'] ?? '')) }},
+                totalUnit: {{ \Illuminate\Support\Js::from(old('items.0.total_unit_name', $initialItem['total_unit_name'] ?? $initialItem['unit_name'] ?? '')) }},
+                unitMismatch() {
+                    return this.defectUnit !== this.totalUnit;
+                },
                 percentage() {
+                    if (this.unitMismatch()) return 'กรุณาเลือกหน่วยนับให้ตรงกัน';
                     const defect = Number(this.defect);
                     const total = Number(this.total);
                     return Number.isFinite(defect) && Number.isFinite(total) && total > 0 ? ((defect / total) * 100).toFixed(2) + '%' : '0.00%';
@@ -431,7 +440,7 @@
                         <span id="defect-quantity-client-error" x-cloak x-show="quantityInvalid()" class="mt-1 block text-xs text-red-600">จำนวนที่พบต้องไม่มากกว่าจำนวนทั้งหมด</span>
                     </label>
                     <label class="block text-sm font-semibold text-slate-700">หน่วยนับที่พบ
-                        <select name="items[0][defect_unit_name]" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select name="items[0][defect_unit_name]" x-model="defectUnit" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">เลือกหน่วยนับ</option>
                             @foreach($units as $unit)<option value="{{ $unit->code }}" {{ (string) old('items.0.defect_unit_name', $initialItem['defect_unit_name'] ?? $initialItem['unit_name'] ?? '') === (string) $unit->code ? 'selected' : '' }}>{{ $unit->name_th }} ({{ $unit->code }})</option>@endforeach
                         </select>
@@ -442,7 +451,7 @@
                         @error('items.0.total_quantity') <span id="total-quantity-error" class="mt-1 block text-xs text-red-600" role="alert">{{ $message }}</span> @enderror
                     </label>
                     <label class="block text-sm font-semibold text-slate-700">หน่วยนับทั้งหมด
-                        <select name="items[0][total_unit_name]" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select name="items[0][total_unit_name]" x-model="totalUnit" class="mt-2 block min-h-[42px] w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">เลือกหน่วยนับ</option>
                             @foreach($units as $unit)<option value="{{ $unit->code }}" {{ (string) old('items.0.total_unit_name', $initialItem['total_unit_name'] ?? $initialItem['unit_name'] ?? '') === (string) $unit->code ? 'selected' : '' }}>{{ $unit->name_th }} ({{ $unit->code }})</option>@endforeach
                         </select>
@@ -451,6 +460,7 @@
                     <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                         <p class="text-sm font-semibold text-slate-700">ร้อยละที่พบ</p>
                         <output class="mt-2 block text-lg font-bold text-indigo-700" aria-live="polite" x-text="percentage()">0.00%</output>
+                        <p x-cloak x-show="unitMismatch()" class="mt-1 text-xs text-red-600" role="alert">หน่วยนับของจำนวนที่พบและจำนวนทั้งหมดต้องตรงกัน</p>
                     </div>
                     <div class="sm:col-span-2 lg:col-span-4">
                         <x-label for="item_problem_description" class="text-sm font-semibold text-slate-700">รายละเอียดความผิดปกติ</x-label>
@@ -488,21 +498,32 @@
                             class="text-sm font-semibold text-slate-700" />
                         <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ PDF, JPG/JPEG/PNG, XLS/XLSX และ DOCX · ไฟล์ละไม่เกิน 10 MB</p>
 
+                        @php
+                            $attachmentErrorMessages = collect($errors->getMessages())
+                                ->filter(static fn ($messages, $key) => $key === 'attachments' || \Illuminate\Support\Str::startsWith($key, 'attachments.'))
+                                ->flatten();
+                        @endphp
                         <input
                             id="attachments"
                             type="file"
                             name="attachments[]"
                             multiple
-                            accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.docx"
-                            aria-invalid="{{ $errors->has('attachments.0') ? 'true' : 'false' }}"
-                            @if($errors->has('attachments.0')) aria-describedby="attachments-error" @endif
+                            accept="{{ implode(',', array_map(static fn ($extension) => '.' . $extension, \App\Services\NcrFileUploadService::ALLOWED_EXTENSIONS)) }}"
+                            aria-invalid="{{ $attachmentErrorMessages->isNotEmpty() ? 'true' : 'false' }}"
+                            @if($attachmentErrorMessages->isNotEmpty()) aria-describedby="attachments-error" @endif
                             class="mt-2 block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-600 shadow-sm
                                 file:mr-4 file:border-0 file:border-r file:border-slate-200
                                 file:bg-slate-50 file:px-4 file:py-3
                                 file:text-sm file:font-semibold file:text-slate-700
                                 hover:file:bg-slate-100
                                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                        @error('attachments.0') <p id="attachments-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p> @enderror
+                        @if($attachmentErrorMessages->isNotEmpty())
+                            <ul id="attachments-error" class="mt-1 space-y-1 text-xs text-red-600" role="alert">
+                                @foreach($attachmentErrorMessages as $message)
+                                    <li>{{ $message }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
                     </div>
 
                 </div>

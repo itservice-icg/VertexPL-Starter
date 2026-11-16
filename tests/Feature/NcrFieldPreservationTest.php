@@ -55,7 +55,7 @@ class NcrFieldPreservationTest extends TestCase
         $this->assertSame('AI', $report->legacy_form_scope_code);
         $this->assertSame('ชื่อสามัญเดิม', $report->generic_name);
         $this->assertSame('KG', $item->defect_unit_name);
-        $this->assertSame('PCS', $item->total_unit_name);
+        $this->assertSame('KG', $item->total_unit_name);
         $this->assertSame(20.0, $item->defect_percentage);
 
         $this->assertSame([
@@ -113,6 +113,20 @@ class NcrFieldPreservationTest extends TestCase
         $this->actingAs($reporter)
             ->post(route('ncr.store'), $payload)
             ->assertSessionHasErrors('items.0.defect_unit_name');
+
+        $this->assertDatabaseCount('ncr_reports', 0);
+    }
+
+    public function test_item_units_must_match_to_calculate_defect_percentage(): void
+    {
+        $reporter = $this->user(['ncr.create']);
+        $payload = $this->reportPayload('AI');
+        $payload['items'][0]['defect_unit_name'] = 'KG';
+        $payload['items'][0]['total_unit_name'] = 'PCS';
+
+        $this->actingAs($reporter)
+            ->post(route('ncr.store'), $payload)
+            ->assertSessionHasErrors('items.0.total_unit_name');
 
         $this->assertDatabaseCount('ncr_reports', 0);
     }
@@ -323,7 +337,7 @@ class NcrFieldPreservationTest extends TestCase
                 'defect_quantity' => 2,
                 'defect_unit_name' => 'KG',
                 'total_quantity' => 10,
-                'total_unit_name' => 'PCS',
+                'total_unit_name' => 'KG',
                 'problem_description' => 'รายละเอียดรายการ',
             ]],
         ];

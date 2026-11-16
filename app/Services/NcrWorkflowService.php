@@ -53,7 +53,7 @@ class NcrWorkflowService
     public function updateDraft(NcrReport $report, array $data, array $items, User $actor, int $version, array $attachments = []): NcrReport
     {
         unset($data['reporter_department_id']);
-        $this->assertOwner($report,$actor); if (! in_array($report->current_status,['DRAFT','RETURNED_FOR_CORRECTION'],true)) throw new ConflictHttpException('สถานะปัจจุบันไม่อนุญาตให้แก้ไข');
+        $this->assertCanEditDraft($report, $actor);
         return DB::transaction(function () use ($report,$data,$items,$actor,$version,$attachments) {
             $items = $this->snapshotItemReferences($report, $items);
             $data = $this->snapshotSupplierReference($data, $report);
@@ -66,8 +66,15 @@ class NcrWorkflowService
 
     public function submit(NcrReport $report, User $actor, int $version): NcrReport
     {
-        $this->assertOwner($report,$actor); if(!in_array($report->current_status,['DRAFT','RETURNED_FOR_CORRECTION'],true))throw new ConflictHttpException('สถานะปัจจุบันส่งตรวจไม่ได้');
+        $this->assertCanSubmit($report, $actor);
         return $this->transition($report,'INITIAL_REVIEW','SUBMIT',null,$actor,$version);
+    }
+
+    public function canSubmit(NcrReport $report, User $actor): bool
+    {
+        return in_array($report->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true)
+            && $actor->hasPermissionTo('ncr.submit')
+            && ((int) $report->reporter_id === (int) $actor->id || $actor->hasRole('Super Admin'));
     }
 
     public function initialReview(NcrReport $report, User $actor, int $version, array $data): NcrReport
@@ -914,6 +921,43 @@ class NcrWorkflowService
         return $data;
     }
     private function history(NcrReport $r,?string $from,string $to,string $action,User $a,?string $note=null):void { NcrStatusHistory::create(['ncr_report_id'=>$r->id,'from_status'=>$from,'to_status'=>$to,'action_code'=>$action,'action_note'=>$note,'assigned_user_id'=>$r->current_owner_user_id,'assigned_department_id'=>$r->current_owner_department_id,'changed_at'=>now(),'changed_by'=>$a->id]); }
+    public function canEditDraft(NcrReport $report, User $actor): bool
+    {
+        return in_array($report->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true)
+            && $actor->hasPermissionTo('ncr.update')
+            && ((int) $report->reporter_id === (int) $actor->id || $actor->hasRole('Super Admin'));
+    }
+
+    private function assertCanEditDraft(NcrReport $report, User $actor): void
+    {
+        if (! $actor->hasPermissionTo('ncr.update')) {
+            throw new AuthorizationException('ไม่มีสิทธิ์แก้ไข NCR');
+        }
+
+        if (! in_array($report->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true)) {
+            throw new ConflictHttpException('สถานะปัจจุบันไม่อนุญาตให้แก้ไข');
+        }
+
+        if ((int) $report->reporter_id !== (int) $actor->id && ! $actor->hasRole('Super Admin')) {
+            throw new AuthorizationException('แก้ไขได้เฉพาะ NCR ของตนเอง');
+        }
+    }
+
+    private function assertCanSubmit(NcrReport $report, User $actor): void
+    {
+        if (! in_array($report->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true)) {
+            throw new ConflictHttpException('สถานะปัจจุบันส่งตรวจไม่ได้');
+        }
+
+        if (! $actor->hasPermissionTo('ncr.submit')) {
+            throw new AuthorizationException('ไม่มีสิทธิ์ส่งตรวจ NCR');
+        }
+
+        if ((int) $report->reporter_id !== (int) $actor->id && ! $actor->hasRole('Super Admin')) {
+            throw new AuthorizationException('ส่งตรวจได้เฉพาะ NCR ของตนเอง');
+        }
+    }
+
     private function assertOwner(NcrReport $r,User $a):void { if((int)$r->reporter_id!==(int)$a->id)throw new AuthorizationException('แก้ไขได้เฉพาะ NCR ของตนเอง'); }
     private function snapshot(NcrReport $r):array { return $r->only(['ncr_no','report_date','found_date','problem_type_id','severity_level_id','problem_description','current_status','version_no']); }
 }

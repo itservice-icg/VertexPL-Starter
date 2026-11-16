@@ -8,7 +8,7 @@ use Illuminate\Validation\ValidationException;
 
 class NcrFileUploadService
 {
-    public const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'xlsx', 'docx'];
+    public const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'xlsx', 'xls', 'docx'];
     public const MAX_KILOBYTES = 10240;
 
     public function store(UploadedFile $file, string $directory = 'ncr'): array

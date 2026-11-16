@@ -51,6 +51,12 @@
     $currentFlowStep = $currentFlowStep === false ? -1 : $currentFlowStep;
     $viewer = auth()->user();
     $isCurrentOwner = (int) $ncr->current_owner_user_id === (int) $viewer->id;
+    $canEditDraft = in_array($ncr->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true)
+        && $viewer->hasPermissionTo('ncr.update')
+        && ((int) $ncr->reporter_id === (int) $viewer->id || $viewer->hasRole('Super Admin'));
+    $canSubmitNcr = in_array($ncr->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true)
+        && $viewer->hasPermissionTo('ncr.submit')
+        && ((int) $ncr->reporter_id === (int) $viewer->id || $viewer->hasRole('Super Admin'));
     $currentDisposition = $ncr->dispositions->first();
     $currentHistory = $ncr->statusHistory->sortByDesc('id')->first();
     $currentCycleActions = $ncr->correctiveActions->where('corrective_action_cycle_id', $ncr->current_corrective_action_cycle_id);
@@ -86,7 +92,7 @@
     $nextAction = 'ตรวจสอบรายละเอียดและประวัติการดำเนินงาน';
     $nextActionHref = null;
 
-    if (in_array($ncr->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true) && $isCurrentOwner && $viewer->can('ncr.update')) {
+    if ($canEditDraft) {
     $currentActionRole = 'ผู้รายงาน / เจ้าของ NCR';
     $currentAction = 'แก้ไขข้อมูล NCR และส่งตรวจสอบอีกครั้ง';
     $nextAction = 'เปิดแบบฟอร์มแก้ไข แล้วกดส่งตรวจสอบ';
@@ -206,9 +212,7 @@
     } elseif ($ncr->current_status === 'CLOSED') {
         $nextActionHref = '#ncr-details';
     }
-    if (in_array($ncr->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true)
-        && $isCurrentOwner
-        && $viewer->can('ncr.update')) {
+    if ($canEditDraft) {
         $nextActionHref = route('ncr.edit', $ncr);
     }
 
@@ -245,12 +249,12 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 @can('ncr.update')
-                @if(in_array($ncr->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true))
+                @if($canEditDraft)
                 <a href="{{ route('ncr.edit', $ncr) }}" class="ncr-action-link ncr-action-link--secondary">แก้ไขข้อมูล</a>
                 @endif
                 @endcan
                 @can('ncr.submit')
-                @if(in_array($ncr->current_status, ['DRAFT', 'RETURNED_FOR_CORRECTION'], true))
+                @if($canSubmitNcr)
                 <form method="POST" action="{{ route('ncr.submit', $ncr) }}">@csrf<input type="hidden" name="version_no" value="{{ $ncr->version_no }}"><button class="ncr-action-link">ส่งตรวจ</button></form>
                 @endif
                 @endcan

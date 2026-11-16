@@ -135,6 +135,17 @@ class NcrPresentationContractTest extends TestCase
         }
     }
 
+    public function test_create_form_displays_problem_type_and_all_attachment_validation_errors(): void
+    {
+        $reportForm = file_get_contents(resource_path('views/ncr/form.blade.php'));
+
+        $this->assertIsString($reportForm);
+        $this->assertStringContainsString("@error('problem_type_id')", $reportForm);
+        $this->assertStringContainsString('$errors->getMessages()', $reportForm);
+        $this->assertStringContainsString("Str::startsWith(\$key, 'attachments.')", $reportForm);
+        $this->assertStringContainsString('@foreach($attachmentErrorMessages as $message)', $reportForm);
+    }
+
     public function test_completing_an_action_defaults_completion_date_without_a_progress_field(): void
     {
         $correctiveActionForm = file_get_contents(resource_path('views/ncr/corrective-action-form.blade.php'));

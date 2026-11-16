@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Department;
+use App\Models\AuditLog;
 use App\Models\NcrReport;
 use App\Models\ProblemType;
 use App\Models\Product;
@@ -15,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class NcrPhaseTwoTest extends TestCase
@@ -343,10 +345,118 @@ class NcrPhaseTwoTest extends TestCase
     public function test_owner_can_update_and_submit_while_other_user_cannot_update():void
     {
         $owner=$this->user(['ncr.create','ncr.update','ncr.submit']);$this->actingAs($owner)->post(route('ncr.store'),$this->payload());$report=NcrReport::firstOrFail();
-        $other=$this->user(['ncr.update']);$this->actingAs($other)->put(route('ncr.update',$report),$this->payload(['version_no'=>$report->version_no]))->assertForbidden();
+        $other=$this->user(['ncr.update', 'ncr.submit']);$this->actingAs($other)->put(route('ncr.update',$report),$this->payload(['version_no'=>$report->version_no]))->assertForbidden();
+        $this->actingAs($other)->post(route('ncr.submit', $report), ['version_no' => $report->version_no])->assertForbidden();
         $this->actingAs($owner)->put(route('ncr.update',$report),$this->payload(['product_name'=>'Updated','version_no'=>$report->version_no]))->assertRedirect();$report->refresh();
         $this->actingAs($owner)->post(route('ncr.submit',$report),['version_no'=>$report->version_no])->assertRedirect();
         $this->assertSame('INITIAL_REVIEW',$report->fresh()->current_status);$this->assertDatabaseHas('ncr_status_history',['ncr_report_id'=>$report->id,'from_status'=>'DRAFT','to_status'=>'INITIAL_REVIEW','action_code'=>'SUBMIT']);
+    }
+
+    public function test_super_admin_can_edit_another_reporters_draft_without_changing_ownership_and_is_audited(): void
+    {
+        $owner = $this->user(['ncr.create', 'ncr.update']);
+        $this->actingAs($owner)->post(route('ncr.store'), $this->payload())->assertRedirect();
+        $report = NcrReport::firstOrFail();
+        $admin = $this->user(['ncr.update']);
+        $admin->assignRole(Role::findOrCreate('Super Admin'));
+
+        $this->actingAs($admin)->get(route('ncr.edit', $report))->assertOk();
+        $this->actingAs($admin)->put(route('ncr.update', $report), $this->payload([
+            'problem_description' => 'Edited by Super Admin',
+            'version_no' => $report->version_no,
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+
+        $report->refresh();
+        $this->assertSame($owner->id, $report->reporter_id);
+        $this->assertSame($owner->id, $report->created_by);
+        $this->assertSame($owner->department_id, $report->reporter_department_id);
+        $this->assertSame($admin->id, $report->updated_by);
+        $this->assertSame(2, $report->version_no);
+        $this->assertSame('Edited by Super Admin', $report->problem_description);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'action' => 'ncr.updated',
+            'auditable_type' => NcrReport::class,
+            'auditable_id' => $report->id,
+        ]);
+        $audit = AuditLog::where('action', 'ncr.updated')->where('auditable_id', $report->id)->latest('id')->firstOrFail();
+        $this->assertSame('DRAFT', $audit->old_values['current_status']);
+        $this->assertSame('DRAFT', $audit->new_values['current_status']);
+        $this->assertSame('Edited by Super Admin', $audit->new_values['problem_description']);
+    }
+
+    public function test_super_admin_can_edit_another_reporters_returned_draft(): void
+    {
+        $owner = $this->user(['ncr.create']);
+        $this->actingAs($owner)->post(route('ncr.store'), $this->payload())->assertRedirect();
+        $report = NcrReport::firstOrFail();
+        $report->update(['current_status' => 'RETURNED_FOR_CORRECTION']);
+        $admin = $this->user(['ncr.update']);
+        $admin->assignRole(Role::findOrCreate('Super Admin'));
+
+        $this->actingAs($admin)->get(route('ncr.edit', $report))->assertOk();
+        $this->actingAs($admin)->put(route('ncr.update', $report), $this->payload([
+            'problem_description' => 'Returned draft updated',
+            'version_no' => $report->version_no,
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('RETURNED_FOR_CORRECTION', $report->fresh()->current_status);
+        $this->assertSame('Returned draft updated', $report->fresh()->problem_description);
+    }
+
+    public function test_super_admin_with_submit_permission_can_submit_another_reporters_draft(): void
+    {
+        $owner = $this->user(['ncr.create']);
+        $this->actingAs($owner)->post(route('ncr.store'), $this->payload())->assertRedirect();
+        $report = NcrReport::firstOrFail();
+        $admin = $this->user(['ncr.update', 'ncr.submit']);
+        $admin->assignRole(Role::findOrCreate('Super Admin'));
+
+        $this->actingAs($admin)->post(route('ncr.submit', $report), ['version_no' => $report->version_no])->assertRedirect();
+        $report->refresh();
+        $this->assertSame('INITIAL_REVIEW', $report->current_status);
+        $this->assertSame(2, $report->version_no);
+        $this->assertDatabaseHas('ncr_status_history', [
+            'ncr_report_id' => $report->id,
+            'action_code' => 'SUBMIT',
+            'changed_by' => $admin->id,
+        ]);
+    }
+
+    public function test_super_admin_without_submit_permission_does_not_see_or_use_submit_action(): void
+    {
+        Permission::findOrCreate('ncr.submit');
+        $owner = $this->user(['ncr.create']);
+        $this->actingAs($owner)->post(route('ncr.store'), $this->payload())->assertRedirect();
+        $report = NcrReport::firstOrFail();
+        $admin = $this->user(['ncr.view']);
+        $admin->assignRole(Role::findOrCreate('Super Admin'));
+
+        $this->actingAs($admin)->get(route('ncr.show', $report))
+            ->assertOk()
+            ->assertDontSee(route('ncr.submit', $report), false);
+        $this->actingAs($admin)->post(route('ncr.submit', $report), ['version_no' => $report->version_no])->assertForbidden();
+        $this->assertSame('DRAFT', $report->fresh()->current_status);
+        $this->assertSame(1, $report->fresh()->version_no);
+    }
+
+    public function test_super_admin_cannot_open_or_update_draft_form_in_other_workflow_states(): void
+    {
+        $owner = $this->user(['ncr.create']);
+        $this->actingAs($owner)->post(route('ncr.store'), $this->payload())->assertRedirect();
+        $report = NcrReport::firstOrFail();
+        $admin = $this->user(['ncr.update']);
+        $admin->assignRole(Role::findOrCreate('Super Admin'));
+
+        foreach (['INITIAL_REVIEW', 'PENDING_MANAGER_APPROVAL', 'CLOSED'] as $status) {
+            $report->update(['current_status' => $status]);
+            $this->actingAs($admin)->get(route('ncr.edit', $report))->assertStatus(409);
+            $this->actingAs($admin)->put(route('ncr.update', $report), $this->payload([
+                'version_no' => $report->version_no,
+            ]))->assertStatus(409);
+            $report->refresh();
+            $this->assertSame($status, $report->current_status);
+            $this->assertSame(1, $report->version_no);
+        }
     }
     public function test_draft_is_hidden_from_everyone_except_its_creator():void
     {

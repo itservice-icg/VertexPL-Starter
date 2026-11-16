@@ -11,6 +11,13 @@ class NcrItem extends Model
 
     public function getDefectPercentageAttribute(): ?float
     {
+        $defectUnit = $this->defect_unit_name ?: $this->unit_name;
+        $totalUnit = $this->total_unit_name ?: $this->unit_name;
+
+        if ($defectUnit !== $totalUnit) {
+            return null;
+        }
+
         return (float) $this->total_quantity > 0
             ? ((float) $this->defect_quantity / (float) $this->total_quantity) * 100
             : null;

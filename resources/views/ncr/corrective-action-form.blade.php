@@ -113,7 +113,7 @@ $completedDateValue = $value('completed_date') ?: ($executionStatus === 'COMPLET
     @if($canUpdateExecution)
         <p class="mt-1 text-sm text-slate-500">ไฟล์หลักฐานเป็นส่วนหนึ่งของแผนที่อนุมัติแล้ว จึงไม่สามารถเพิ่มจากหน้านี้ได้</p>
     @else
-    <input id="{{ $fieldIdPrefix }}-attachments" type="file" name="attachments[]" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-2 block w-full rounded-lg text-sm {{ $showErrors && ($errors->has('attachments') || $errors->has('attachments.*')) ? 'border border-red-400 p-2' : '' }}" @if($showErrors && ($errors->has('attachments') || $errors->has('attachments.*'))) aria-invalid="true" data-validation-error @endif>
+    <input id="{{ $fieldIdPrefix }}-attachments" type="file" name="attachments[]" multiple accept="{{ implode(',', array_map(static fn ($extension) => '.' . $extension, \App\Services\NcrFileUploadService::ALLOWED_EXTENSIONS)) }}" class="mt-2 block w-full rounded-lg text-sm {{ $showErrors && ($errors->has('attachments') || $errors->has('attachments.*')) ? 'border border-red-400 p-2' : '' }}" @if($showErrors && ($errors->has('attachments') || $errors->has('attachments.*'))) aria-invalid="true" data-validation-error @endif>
     @if($showErrors) @error('attachments')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @error('attachments.*')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
     @endif
 </div>
